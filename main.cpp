@@ -93,6 +93,10 @@ void setup() {
   // Esperar un poco que Serial esté listo
   delay(1000);
 
+  Serial.print("Temp onBoard ");
+  Serial.print(temp_celsius);
+  Serial.println("°C");
+
   Serial.println("\n🛰️  TEIDESAT SATELLITE TELEMETRY SYSTEM - ESP32 WOKWI");
   Serial.println("======================================================");
   Serial.println("Starting FreeRTOS tasks...");

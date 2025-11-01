@@ -94,10 +94,11 @@ void vTelemetryProcessorTask(void *pvParameters) {
       // Visualización para WOKWI
       switch(packet.header.type) {
         case TELEM_SYSTEM_STATUS:
-          printf("📊 SYSTEM: Uptime=%lus | Heap=%lu | Tasks=%d | Seq=%d\n",
+          printf("📊 SYSTEM: Uptime=%lus | Heap=%lu | Tasks=%d | CPU Temp=%.1fC | Seq=%d\n",
                  packet.system.uptime_seconds,
                  packet.system.heap_free,
                  packet.system.task_count,
+                 packet.system.cpu_temperature,
                  packet.header.sequence);
           break;
 

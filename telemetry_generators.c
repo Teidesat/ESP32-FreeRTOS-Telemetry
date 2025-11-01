@@ -86,7 +86,6 @@ float read_virtual_temperature() {
  * - Modo de operación del sistema
  * - Uso de memoria heap disponible
  * - Número de tareas activas en FreeRTOS
- * - Contador de errores del sistema
  * 
  * @note Los datos de uso de CPU no están disponibles en ESP32 FreeRTOS
  */
@@ -109,8 +108,10 @@ void generate_system_telemetry(void) {
   // Memoria ESP32
   system_telem.heap_free = esp_get_free_heap_size();
   system_telem.task_count = uxTaskGetNumberOfTasks();
-  system_telem.error_count = 0;
 
+  // temperatura CPU ESP32
+  system_telem.cpu_temperature = temperatureRead();
+  
   telemetry_store_packet((telemetry_packet_t*)&system_telem);
 }
 

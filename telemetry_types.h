@@ -9,6 +9,8 @@
  * encabezado común `telem_header_t`, los distintos bloques de datos de
  * telemetría (sistema, potencia, temperatura, subsistemas) y la unión
  * `telemetry_packet_t` para almacenar cualquier paquete.
+ * 
+ * @see https://www.luisllamas.es/en/esp32-built-in-temperature-sensor/
  */
 
 #ifndef TELEMETRY_TYPES_H
@@ -22,8 +24,6 @@ typedef enum {
     TELEM_SYSTEM_STATUS = 0,      /**< Estado general del sistema */
     TELEM_POWER_DATA,             /**< Datos del sistema de potencia */
     TELEM_TEMPERATURE_DATA,       /**< Mediciones de temperatura */
-    TELEM_ATTITUDE_DATA,          /**< Datos de actitud/ADCS */
-    TELEM_PAYLOAD_DATA,           /**< Datos del payload */
     TELEM_COMMUNICATION_STATUS    /**< Estado de comunicaciones */
 } telem_data_type_t;
 
@@ -39,7 +39,6 @@ typedef struct {
     uint32_t timestamp;       /**< Timestamp interno del sistema (segundos) */
     uint16_t sequence;        /**< Número de secuencia del paquete */
     uint8_t priority;         /**< Prioridad (0=low,1=normal,2=high) */
-    uint8_t reserved;         /**< Reservado para alineación/extensiones */
 } telem_header_t;
 
 /**
@@ -56,7 +55,7 @@ typedef struct {
     uint16_t stack_high_water;    /**< FreeRTOS stack high water mark */
     uint32_t heap_free;           /**< Memoria heap libre en bytes */
     uint8_t task_count;           /**< Número de tareas activas */
-    uint8_t error_count;          /**< Contador de errores */
+    float cpu_temperature;       /**< Temperatura CPU del ESP32 en celsius */
 } system_status_telem_t;
 
 /**
@@ -99,8 +98,8 @@ typedef struct {
 typedef struct {
     telem_header_t header;          /**< Encabezado común */
     uint8_t comms_status;           /**< Estado comunicaciones (codificado) */
-    uint8_t adcs_status;            /**< Estado ADCS/control de actitud */
-    uint8_t payload_status;         /**< Estado del payload */
+    uint8_t adcs_status;            /**< Estado ADCS/control de actitud (No probado) */
+    uint8_t payload_status;         /**< Estado del payload (No probado) */
     uint8_t power_status;           /**< Estado del sistema de potencia */
     uint32_t comms_uptime;          /**< Tiempo activo comunicaciones (s) */
     uint32_t payload_uptime;        /**< Tiempo activo payload (s) */
