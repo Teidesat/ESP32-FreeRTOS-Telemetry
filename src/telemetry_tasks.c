@@ -18,7 +18,7 @@
  * reducidos para facilitar la visualización durante pruebas.
  */
 
-#include "telemetry_storage.h"
+#include "../include/telemetry_storage.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/timers.h"

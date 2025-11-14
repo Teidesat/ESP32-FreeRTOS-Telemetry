@@ -10,7 +10,7 @@
  * de FreeRTOS. Diseñado específicamente para ejecutarse en el ESP32 bajo FreeRTOS.
  */
 
-#include "telemetry_storage.h"
+#include "../include/telemetry_storage.h"
 
 #if ESP_PLATFORM
   #include "freertos/FreeRTOS.h"

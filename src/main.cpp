@@ -21,7 +21,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_system.h"
-#include "telemetry_storage.h"
+#include "../include/telemetry_storage.h"
 
 /*
  * DATO IMPORTANTE
@@ -94,7 +94,7 @@ void setup() {
   delay(1000);
 
   Serial.print("Temp onBoard ");
-  Serial.print(temp_celsius);
+  // Serial.print(temp_celsius);
   Serial.println("°C");
 
   Serial.println("\n🛰️  TEIDESAT SATELLITE TELEMETRY SYSTEM - ESP32 WOKWI");

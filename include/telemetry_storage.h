@@ -25,6 +25,8 @@
 
 #include "telemetry_types.h"
 #include <stdbool.h>
+#include "FS.h"
+#include "LittleFS.h"
 
 /* ESP32 FreeRTOS includes */
 #if ESP_PLATFORM
