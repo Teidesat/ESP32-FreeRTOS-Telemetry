@@ -16,16 +16,18 @@
  * - Temperaturas (OBC, comunicaciones, payload, batería, externa)
  * - Estado de subsistemas (comms, ADCS, payload, potencia)
  * 
- * @note En entorno WOKWI, se utilizan sensores virtuales que generan datos
- * aleatorios realistas. En hardware real, estas funciones se modificarían
- * para leer sensores físicos reales.
+ * @note En entorno este entorno de pruebas, no se utilizan sensores 
+ * físicos reales, sino que se generan datos aleatorios realistas. 
+ * En hardware real, estas funciones se modificarían para leer sensores físicos reales.
  */
 
-#include "telemetry_storage.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_system.h"
 #include "esp_heap_caps.h"
+#include <Arduino.h>
+#include <ESPCPUTemp.h>
+#include "../include/telemetry_storage.h"
 
 static uint16_t sequence_number = 0; /**< Contador de secuencia para paquetes de telemetría */
 static uint32_t system_uptime = 0; /**< Tiempo de actividad del sistema en segundos */
@@ -77,19 +79,6 @@ float read_virtual_temperature() {
 }
 #endif
 
-/**
- * @brief Genera datos de telemetría del estado del sistema
- * 
- * @details
- * Recopila y genera información sobre el estado general del sistema:
- * - Tiempo de actividad (uptime)
- * - Modo de operación del sistema
- * - Uso de memoria heap disponible
- * - Número de tareas activas en FreeRTOS
- * 
- * @note Los datos de uso de CPU no están disponibles en ESP32 FreeRTOS
- */
-
 void generate_system_telemetry(void) {
   system_status_telem_t system_telem;
 
@@ -115,24 +104,7 @@ void generate_system_telemetry(void) {
   telemetry_store_packet((telemetry_packet_t*)&system_telem);
 }
 
-/**
- * @brief Genera datos de telemetría del sistema de potencia
- * 
- * @details
- * Recopila información sobre el estado del sistema de potencia:
- * - Voltaje y corriente de batería
- * - Voltaje y corriente de paneles solares  
- * - Nivel de carga de la batería
- * - Temperatura de la batería
- * - Estado general del sistema de potencia
- * 
- * Esta telemetría tiene prioridad alta debido a su importancia crítica
- * En WOKWI se utilizan sensores virtuales, mientras que en hardware 
- * real se leerían ADCs y sensores I2C.
- * 
- * @note El nivel de batería disminuye gradualmente con el tiempo
- * para simular el consumo energético real.
- */
+
 void generate_power_telemetry(void) {
   power_telem_t power_telem;
 
@@ -158,23 +130,7 @@ void generate_power_telemetry(void) {
   telemetry_store_packet((telemetry_packet_t*)&power_telem);
 }
 
-/**
- * @brief Genera datos de telemetría de temperaturas
- * 
- * @details
- * Recopila temperaturas de los diferentes componentes del satélite:
- * - OBC (On-Board Computer)
- * - Módulo de comunicaciones  
- * - Payload (carga útil)
- * - Batería
- * - Temperatura externa
- * 
- * Las temperaturas se generan para cada componente,
- * simulando los gradientes térmicos típicos en un satélite.
- * 
- * @note En un sistema real, estos datos vendrían de sensores de temperatura
- * como termistores o sensores I2C (DS18B20, TMP36, etc.).
- */
+
 void generate_temperature_telemetry(void) {
   temperature_telem_t temp_telem;
 
@@ -200,19 +156,6 @@ void generate_temperature_telemetry(void) {
   telemetry_store_packet((telemetry_packet_t*)&temp_telem);
 }
 
-/**
- * @brief Genera datos de telemetría del estado de subsistemas
- * 
- * @details
- * Proporciona información sobre el estado operativo de los principales
- * subsistemas del satélite:
- * - Estado de comunicaciones (operacional/fallo)
- * - Estado del ADCS 
- * - Estado del payload 
- * - Estado del sistema de potencia
- * - Tiempos de actividad de subsistemas
- * - Estadísticas de ejecución de comandoss
- */
 void generate_subsystem_telemetry(void) {
   subsystem_status_telem_t subsys_telem;
 

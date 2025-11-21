@@ -23,19 +23,12 @@
 #ifndef TELEMETRY_STORAGE_H
 #define TELEMETRY_STORAGE_H
 
-#include "telemetry_types.h"
-#include <stdbool.h>
-#include "FS.h"
-#include "LittleFS.h"
-
-/* ESP32 FreeRTOS includes */
-#if ESP_PLATFORM
+  #include <stdbool.h>
   #include "freertos/FreeRTOS.h"
   #include "freertos/semphr.h"
   #include "freertos/task.h"
-#else
-  #error "Este código requiere ESP32 FreeRTOS"
-#endif
+  #include "telemetry_types.h"
+
 
 /** @brief Capacidad máxima del buffer circular en número de paquetes */
 #define TELEM_BUFFER_SIZE 1024

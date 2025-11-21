@@ -14,64 +14,84 @@
  * - Procesador de telemetría: Procesa y analiza los datos capturados
  * - Transmisor de telemetría: Envía los datos procesados
  * 
- * @note Este código está optimizado para ejecutarse en un entorno Wokwi ESP32.
+ * @note Este código está optimizado para ejecutarse en un ESP32-WROOM-32.
  */
 
 #include <Arduino.h>
+#include <FS.h>
+#include <LittleFS.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_system.h"
 #include "../include/telemetry_storage.h"
+#include "../include/telemetry_logger.h"
 
-/*
- * DATO IMPORTANTE
- * El archivo main.cpp está en C++, pero las funciones de las tareas están implementadas en archivos .c (C puro)
- * extern "C" le dice al compilador de C++ que use el sistema de nombres de C para estas funciones.
- * Sin esto, el linker no podría encontrar las funciones porque C++ modifica los nombres de las funciones para 
- * soportar sobrecarga, mientras que C no lo hace.
- */
-extern "C" {
-    /**
-     * @brief Tarea para recolección de datos de telemetría
-     * @param pvParameters Parámetros de la tarea (no utilizados)
-     * 
-     * @details Esta tarea se encarga de recopilar datos de los diferentes sensores
-     * y sistemas del satélite, incluyendo:
-     * - Estado del sistema
-     * - Datos de energía
-     * - Temperaturas
-     * - Estado de subsistemas
-     * 
-     * La tarea se ejecuta periódicamente y almacena los datos en el buffer circular
-     * de telemetría para su posterior procesamiento.
-     */
-    void vTelemetryCollectorTask(void *pvParameters);
+// Declaración de las tareas de telemetría
+void vTelemetryCollectorTask(void *pvParameters);
+void vTelemetryProcessorTask(void *pvParameters);
+void vTelemetryTransmitterTask(void *pvParameters);
 
-    /**
-     * @brief Tarea para procesamiento de datos de telemetría
-     * @param pvParameters Parámetros de la tarea (no utilizados)
-     * 
-     * @details Esta tarea procesa los datos almacenados en el buffer circular,
-     * realizando operaciones como:
-     * - Validación de datos
-     * - Cálculo de estadísticas
-     * - Detección de anomalías
-     * - Preparación para transmisión
-     */
-    void vTelemetryProcessorTask(void *pvParameters);
+// --- Ejemplo mínimo LittleFS: crear, escribir, leer y borrar ---
+static void runLittleFSDemo() {
+  Serial.println("\n[LittleFS] Demo: crear -> añadir -> leer -> borrar");
 
-    /**
-     * @brief Tarea para transmisión de datos de telemetría
-     * @param pvParameters Parámetros de la tarea (no utilizados)
-     * 
-     * @details Esta tarea se encarga de transmitir los datos procesados,
-     * implementando:
-     * - Priorización de mensajes
-     * - Gestión de cola de transmisión
-     * - Control de errores
-     * - Confirmación de envío
-     */
-    void vTelemetryTransmitterTask(void *pvParameters);
+  if (!LittleFS.begin(true)) {
+    Serial.println("[LittleFS] ERROR: no se pudo montar (formateado si era necesario)");
+    return;
+  }
+
+  const char *path = "/demo.txt";
+
+  // Limpieza inicial opcional
+  if (LittleFS.exists(path)) {
+    LittleFS.remove(path);
+  }
+
+  // 1) Crear y escribir
+  {
+    File f = LittleFS.open(path, FILE_WRITE);
+    if (!f) {
+      Serial.println("[LittleFS] ERROR al crear archivo");
+      return;
+    }
+    f.println("Hola desde LittleFS 👋");
+    f.println("Linea 1");
+    f.close();
+    Serial.println("[LittleFS] Archivo creado y escrito (2 lineas)");
+  }
+
+  // 2) Añadir (append)
+  {
+    File f = LittleFS.open(path, FILE_APPEND);
+    if (!f) {
+      Serial.println("[LittleFS] ERROR al abrir para append");
+      return;
+    }
+    f.println("Linea 2 (append)");
+    f.close();
+    Serial.println("[LittleFS] Linea añadida (append)");
+  }
+
+  // 3) Leer contenido completo
+  {
+    File f = LittleFS.open(path, FILE_READ);
+    if (!f) {
+      Serial.println("[LittleFS] ERROR al abrir para lectura");
+      return;
+    }
+    Serial.println("[LittleFS] Contenido de /demo.txt:");
+    while (f.available()) {
+      Serial.write(f.read());
+    }
+    f.close();
+  }
+
+  // 4) Borrar
+  if (LittleFS.remove(path)) {
+    Serial.println("\n[LittleFS] Archivo borrado correctamente");
+  } else {
+    Serial.println("\n[LittleFS] ERROR al borrar archivo");
+  }
 }
 
 /**
@@ -93,13 +113,23 @@ void setup() {
   // Esperar un poco que Serial esté listo
   delay(1000);
 
-  Serial.print("Temp onBoard ");
-  // Serial.print(temp_celsius);
-  Serial.println("°C");
+  // Demo LittleFS antes de iniciar tareas
+  runLittleFSDemo();
 
-  Serial.println("\n🛰️  TEIDESAT SATELLITE TELEMETRY SYSTEM - ESP32 WOKWI");
-  Serial.println("======================================================");
-  Serial.println("Starting FreeRTOS tasks...");
+  // Inicializar logger y registrar algunas lineas al archivo
+  telemetry_logger_init();
+
+  // Borrar el contenido previo del log para esta sesión
+  telemetry_log_clear();
+
+  telemetry_logf("Sistema de telemetría iniciando...");
+  // Escribe un identificador de arranque para poder ver claramente que proviene del fichero
+  uint32_t bootId = esp_random();
+  telemetry_logf("LOG PROOF: BOOT_ID=%08X", (unsigned)bootId);
+
+  telemetry_logf("\n🛰️  TEIDESAT SATELLITE TELEMETRY SYSTEM - ESP32 WOKWI");
+  telemetry_logf("======================================================");
+  telemetry_logf("Starting FreeRTOS tasks...");
 
   // Crear tareas de telemetría
   xTaskCreate(
@@ -129,9 +159,9 @@ void setup() {
     NULL
   );
 
-  Serial.println("✅ All telemetry tasks created successfully");
-  Serial.println("📡 System operational - Telemetry data generation started");
-  Serial.println("--------------------------------------------------------\n");
+  telemetry_logf("✅ All telemetry tasks created successfully");
+  telemetry_logf("📡 System operational - Telemetry data generation started");
+  telemetry_logf("--------------------------------------------------------");
 }
 
 /**
@@ -150,13 +180,21 @@ void loop() {
   // FreeRTOS maneja las tareas, este loop puede estar vacío
   delay(1000);
 
+  // Dump periódico del fichero cada 15 segundos
+  static uint32_t last_dump = 0;
+  if (millis() - last_dump > 15000) {
+    Serial.println("\n[Logger] Dump periódico del fichero /telemetry_log.txt:");
+    telemetry_dump_log();
+    last_dump = millis();
+  }
+
 	// Opcional: mostrar estado general periódicamente
   static uint32_t last_status = 0;
   if(millis() - last_status > 30000) { // Cada 30 segundos
     last_status = millis();
-    Serial.printf("\n📈 SYSTEM STATUS: Uptime: %lus | Heap: %lu | Tasks: %d\n",
-                    millis() / 1000, 
-                    esp_get_free_heap_size(),
-                    uxTaskGetNumberOfTasks());
+    telemetry_logf("\n📈 SYSTEM STATUS: Uptime: %lus | Heap: %lu | Tasks: %d",
+                   millis() / 1000,
+                   esp_get_free_heap_size(),
+                   uxTaskGetNumberOfTasks());
   }
 }
