@@ -32,53 +32,6 @@
 static uint16_t sequence_number = 0; /**< Contador de secuencia para paquetes de telemetría */
 static uint32_t system_uptime = 0; /**< Tiempo de actividad del sistema en segundos */
 
-// Usar ADC del ESP32 para simular sensores (en WOKWI)
-#ifdef WOKWI
-/**
- * @brief Simula la lectura de voltaje de batería en entorno WOKWI
- * @return Voltaje simulado en el rango 3.300V - 3.499V
- * 
- * @details
- * Genera un voltaje de batería simulado con pequeñas fluctuaciones
- * aleatorias alrededor de 3.3V nominales, simulando el comportamiento
- * real de una batería de litio en condiciones normales de operación.
- * 
- * @code
- * // Ejemplo de uso:
- * float voltage = read_virtual_voltage();
- * // Resultado: 3.345V, 3.398V, 3.312V, etc.
- * @endcode
- */
-float read_virtual_voltage() {
-  return 3.3f + ((esp_random() % 200) / 1000.0f); // 3.3V ± 0.2V
-  //        ↑              ↑           ↑
-  //   Voltaje base    Variación     Escala
-  //   nominal (3.3V)  (0-199)      (/1000 = 0.000-0.199V)
-}
-
-/**
- * @brief Simula la lectura de temperatura en entorno WOKWI
- * @return Temperatura simulada en el rango 25.0°C - 39.9°C
- * 
- * @details
- * Genera temperaturas simuladas con variaciones aleatorias alrededor
- * de 25°C, representando condiciones térmicas típicas en órbita LEO
- * (Low Earth Orbit) con fluctuaciones debido a la exposición solar.
- * 
- * @code
- * // Ejemplo de uso:
- * float temp = read_virtual_temperature();
- * // Resultado: 31.2°C, 28.7°C, 35.9°C, etc.
- * @endcode
- */
-float read_virtual_temperature() {
-  return 25.0f + ((esp_random() % 150) / 10.0f); // 25°C ± 15°C
-  //        ↑              ↑           ↑
-  //   Temp base      Variación      Escala
-  //   (25°C)        (0-149)       (/10 = 0.0-14.9°C)
-}
-#endif
-
 void generate_system_telemetry(void) {
   system_status_telem_t system_telem;
 

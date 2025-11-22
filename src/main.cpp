@@ -120,7 +120,7 @@ void loop() {
     last_dump = millis();
   }
 
-	// Opcional: mostrar estado general periódicamente
+	// Mostrar estado general periódicamente
   static uint32_t last_status = 0;
   if(millis() - last_status > 30000) { // Cada 30 segundos
     last_status = millis();
