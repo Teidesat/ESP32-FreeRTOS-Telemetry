@@ -30,7 +30,8 @@ bool telemetry_logger_init(void);
 /**
  * @brief Escribe una linea formateada al Serial y al archivo.
  * 
- * @param fmt Formato de cadena estilo printf.
+ * @param fmt Formato de cadena estilo printf. 
+ * @param ... Argumentos variables según el formato.
  * 
  * @details Escribe una línea formateada tanto en el Serial 
  * como en el archivo de log. Esto permite mantener un registro 

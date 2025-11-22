@@ -1,9 +1,20 @@
-#include "../include/telemetry_logger.h"
+/**
+ * @file telemetry_logger.cpp
+ * @brief Implementación del logger de telemetría en LittleFS
+ * @author Aarón Ramírez Valencia - TeideSat
+ * @date 10-11-2025
+ * 
+ * @details  Este módulo implementa un logger simple de telemetría
+ * que escribe mensajes formateados en un archivo de LittleFS.
+ * El logger también imprime los mensajes en el puerto serie. 
+ */
 
 #include <Arduino.h>
 #include <FS.h>
 #include <LittleFS.h>
 #include <stdarg.h>
+#include "../include/telemetry_logger.h"
+
 
 // Implementación mínima sin mutex (solo usada desde loop/setup)
 static bool s_logger_ready = false;

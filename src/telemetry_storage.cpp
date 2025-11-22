@@ -10,15 +10,12 @@
  * de FreeRTOS. Diseñado específicamente para ejecutarse en el ESP32 bajo FreeRTOS.
  */
 
-#include "../include/telemetry_storage.h"
-
-#if ESP_PLATFORM
   #include "freertos/FreeRTOS.h"
   #include "freertos/semphr.h"
   #include "freertos/task.h"
-#endif
+  #include "../include/telemetry_storage.h"
 
-/** @brief Instancia global del buffer circular (static para encapsulamiento) */
+  /** @brief Instancia global del buffer circular (static para encapsulamiento) */
 static telemetry_buffer_t telem_buffer;
 
 void telemetry_storage_init(void) {
