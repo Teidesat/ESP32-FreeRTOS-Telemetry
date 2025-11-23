@@ -66,14 +66,8 @@ void generate_power_telemetry(void) {
   power_telem.header.sequence = sequence_number++;
   power_telem.header.priority = 2;
 
-#ifdef WOKWI
-  power_telem.battery_voltage = read_virtual_voltage();
-  power_telem.battery_temperature = read_virtual_temperature();
-#else
   power_telem.battery_voltage = 3.3f;
   power_telem.battery_temperature = 25;
-#endif
-
   power_telem.battery_current = 0.1f;
   power_telem.solar_panel_voltage = 5.0f;
   power_telem.solar_panel_current = 0.5f;
@@ -92,19 +86,11 @@ void generate_temperature_telemetry(void) {
   temp_telem.header.sequence = sequence_number++;
   temp_telem.header.priority = 1;
 
-#ifdef WOKWI
-  temp_telem.obc_temperature = read_virtual_temperature();
-  temp_telem.comms_temperature = read_virtual_temperature() - 5;
-  temp_telem.payload_temperature = read_virtual_temperature() + 3;
-  temp_telem.battery_temperature = read_virtual_temperature();
-  temp_telem.external_temperature = read_virtual_temperature() - 10;
-#else
   temp_telem.obc_temperature = 35;
   temp_telem.comms_temperature = 28;
   temp_telem.payload_temperature = 25;
   temp_telem.battery_temperature = 22;
   temp_telem.external_temperature = -15;
-#endif
 
   telemetry_store_packet((telemetry_packet_t*)&temp_telem);
 }

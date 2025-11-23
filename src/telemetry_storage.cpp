@@ -92,3 +92,31 @@ uint32_t telemetry_available_packets(void) {
   }
   return available;
 }
+
+uint32_t telemetry_free_space(void) {
+  uint32_t free_space = 0;
+  if(xSemaphoreTake(telem_buffer.mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+    uint32_t used;
+    if(telem_buffer.write_index >= telem_buffer.read_index) {
+      used = telem_buffer.write_index - telem_buffer.read_index;
+    } else {
+      used = TELEM_BUFFER_SIZE - telem_buffer.read_index + telem_buffer.write_index;
+    }
+    // Un slot reservado para condición de lleno
+    free_space = (TELEM_BUFFER_SIZE - 1) - used;
+    xSemaphoreGive(telem_buffer.mutex);
+  }
+  return free_space;
+}
+
+void telemetry_get_stats(uint32_t* written, uint32_t* read, uint32_t* lost) {
+  if(written) *written = 0;
+  if(read) *read = 0;
+  if(lost) *lost = 0;
+  if(xSemaphoreTake(telem_buffer.mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+    if(written) *written = telem_buffer.packets_written;
+    if(read) *read = telem_buffer.packets_read;
+    if(lost) *lost = telem_buffer.packets_lost;
+    xSemaphoreGive(telem_buffer.mutex);
+  }
+}
