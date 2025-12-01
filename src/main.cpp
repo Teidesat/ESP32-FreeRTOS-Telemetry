@@ -67,14 +67,18 @@ void setup() {
   telemetry_logf("======================================================");
   telemetry_logf("Starting FreeRTOS tasks...");
 
-  // Crear tareas de telemetría
+  // Crear tareas de telemetría (guardar handles para diagnóstico de stack)
+  extern TaskHandle_t gTaskCollectHandle;
+  extern TaskHandle_t gTaskProcessHandle;
+  extern TaskHandle_t gTaskTransmitHandle;
+
   xTaskCreate(
     vTelemetryCollectorTask,   // Función
     "TelemCollect",            // Nombre
     4096,                      // Stack size
     NULL,                      // Parámetros
     2,                         // Prioridad
-    NULL                       // Handle
+    &gTaskCollectHandle        // Handle
   );
 
   xTaskCreate(
@@ -83,7 +87,7 @@ void setup() {
     4096,
     NULL,
     1,
-    NULL
+    &gTaskProcessHandle
   );
 
   xTaskCreate(
@@ -92,7 +96,7 @@ void setup() {
     4096,
     NULL,
     1,
-    NULL
+    &gTaskTransmitHandle
   );
 
   telemetry_logf("✅ All telemetry tasks created successfully");

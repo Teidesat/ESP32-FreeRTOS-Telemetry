@@ -79,3 +79,116 @@ void telemetry_log_clear(void) {
     Serial.println("[Logger] Log aún no existe; nada que truncar");
   }
 }
+
+// ============================================================================
+// Funciones de logging específicas por tipo de telemetría
+// ============================================================================
+
+static void write_to_file(const char *filename, const char *buffer) {
+  if (!s_logger_ready) return;
+  File f = LittleFS.open(filename, FILE_APPEND);
+  if (f) {
+    f.println(buffer);
+    f.close();
+  }
+}
+
+void telemetry_log_system(const char *fmt, ...) {
+  if (!s_logger_ready) return;
+  char buffer[200];
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buffer, sizeof(buffer), fmt, args);
+  va_end(args);
+  Serial.println(buffer);
+  write_to_file(TELEMETRY_SYSTEM_LOG, buffer);
+}
+
+void telemetry_log_power(const char *fmt, ...) {
+  if (!s_logger_ready) return;
+  char buffer[200];
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buffer, sizeof(buffer), fmt, args);
+  va_end(args);
+  Serial.println(buffer);
+  write_to_file(TELEMETRY_POWER_LOG, buffer);
+}
+
+void telemetry_log_temperature(const char *fmt, ...) {
+  if (!s_logger_ready) return;
+  char buffer[200];
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buffer, sizeof(buffer), fmt, args);
+  va_end(args);
+  Serial.println(buffer);
+  write_to_file(TELEMETRY_TEMP_LOG, buffer);
+}
+
+void telemetry_log_comms(const char *fmt, ...) {
+  if (!s_logger_ready) return;
+  char buffer[200];
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buffer, sizeof(buffer), fmt, args);
+  va_end(args);
+  Serial.println(buffer);
+  write_to_file(TELEMETRY_COMMS_LOG, buffer);
+}
+
+// ============================================================================
+// Funciones de volcado por tipo
+// ============================================================================
+
+static void dump_file(const char *filename, const char *label) {
+  if (!s_logger_ready) {
+    Serial.printf("[Logger] No listo para dump de %s\n", label);
+    return;
+  }
+  File f = LittleFS.open(filename, FILE_READ);
+  if (!f) {
+    Serial.printf("[Logger] No se pudo abrir %s para lectura\n", filename);
+    return;
+  }
+  size_t sz = f.size();
+  Serial.printf("\n[Logger] >>> BEGIN %s DUMP: %s (%u bytes)\n", label, filename, (unsigned)sz);
+  Serial.println("[Logger] --- START ---");
+  while (f.available()) {
+    Serial.write(f.read());
+  }
+  f.close();
+  Serial.println("\n[Logger] --- END ---");
+  Serial.printf("[Logger] <<< END %s DUMP\n\n", label);
+}
+
+void telemetry_dump_system_log(void) {
+  dump_file(TELEMETRY_SYSTEM_LOG, "SYSTEM");
+}
+
+void telemetry_dump_power_log(void) {
+  dump_file(TELEMETRY_POWER_LOG, "POWER");
+}
+
+void telemetry_dump_temperature_log(void) {
+  dump_file(TELEMETRY_TEMP_LOG, "TEMPERATURE");
+}
+
+void telemetry_dump_comms_log(void) {
+  dump_file(TELEMETRY_COMMS_LOG, "COMMS");
+}
+
+void telemetry_dump_all_logs(void) {
+  Serial.println("\n╔═══════════════════════════════════════════════════════════╗");
+  Serial.println("║         VOLCADO COMPLETO DE LOGS DE TELEMETRÍA            ║");
+  Serial.println("╚═══════════════════════════════════════════════════════════╝\n");
+  
+  telemetry_dump_system_log();
+  telemetry_dump_power_log();
+  telemetry_dump_temperature_log();
+  telemetry_dump_comms_log();
+  
+  Serial.println("╔═══════════════════════════════════════════════════════════╗");
+  Serial.println("║              FIN DEL VOLCADO COMPLETO                     ║");
+  Serial.println("╚═══════════════════════════════════════════════════════════╝\n");
+}

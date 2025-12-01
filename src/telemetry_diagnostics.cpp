@@ -15,6 +15,7 @@
 #include "../include/telemetry_diagnostics.h"
 #include "../include/telemetry_logger.h"
 #include "../include/telemetry_storage.h"
+#include "../include/telemetry_tasks.h"
 
 static uint32_t s_last_dump_ms = 0;
 static uint32_t s_last_status_ms = 0;
@@ -28,19 +29,29 @@ void telemetry_diagnostics_init(void) {
 void telemetry_diagnostics_tick(void) {
   uint32_t now = millis();
 
-  // Dump periódico del fichero cada 30 s
-  if (now - s_last_dump_ms > 30000) {
-    telemetry_logf("\n[DIAG] File dump trigger");
-    telemetry_dump_log();
+  // Dump periódico de todos los ficheros de telemetría cada 45 s
+  if (now - s_last_dump_ms > 45000) {
+    telemetry_logf("\n[DIAG] Triggering periodic dump of all telemetry logs");
+    telemetry_dump_all_logs();
     s_last_dump_ms = now;
   }
 
-  // Estado del sistema cada 20 s
+  // Reporte de uso de stack de tareas cada ~20s (solo si DEBUG_STACK está definido)
+#ifdef DEBUG_STACK
   if (now - s_last_status_ms > 20000) {
     s_last_status_ms = now;
-    uint32_t written, read, lost;
-    telemetry_get_stats(&written, &read, &lost);
-    telemetry_logf("\n📈 SYSTEM STATUS: Uptime: %lus | Heap: %lu | Tasks: %d | Buf W/R/L=%lu/%lu/%lu",\
-                    now / 1000, esp_get_free_heap_size(), uxTaskGetNumberOfTasks(), written, read, lost);
+    if (gTaskCollectHandle) {
+      UBaseType_t hwm = uxTaskGetStackHighWaterMark(gTaskCollectHandle);
+      telemetry_logf("[STACK] TelemCollect high-water mark: %u stack words free", (unsigned)(hwm * sizeof(StackType_t)));
+    }
+    if (gTaskProcessHandle) {
+      UBaseType_t hwm = uxTaskGetStackHighWaterMark(gTaskProcessHandle);
+      telemetry_logf("[STACK] TelemProcess high-water mark: %u stack words free", (unsigned)(hwm * sizeof(StackType_t)));
+    }
+    if (gTaskTransmitHandle) {
+      UBaseType_t hwm = uxTaskGetStackHighWaterMark(gTaskTransmitHandle);
+      telemetry_logf("[STACK] TelemXmit high-water mark: %u stack words free", (unsigned)(hwm * sizeof(StackType_t)));
+    }
   }
+#endif
 }

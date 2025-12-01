@@ -15,7 +15,12 @@
 
 #include <stdbool.h>
 
-#define TELEMETRY_LOG_FILE "/telemetry_log.txt"
+// Archivos de log separados por tipo de telemetría
+#define TELEMETRY_LOG_FILE "/telemetry_log.txt"      // Log general (eventos del sistema)
+#define TELEMETRY_SYSTEM_LOG "/telem_system.txt"     // Telemetría de sistema
+#define TELEMETRY_POWER_LOG "/telem_power.txt"       // Telemetría de potencia
+#define TELEMETRY_TEMP_LOG "/telem_temp.txt"         // Telemetría de temperatura
+#define TELEMETRY_COMMS_LOG "/telem_comms.txt"       // Telemetría de comunicaciones
 
 /**
  * @brief Inicializa el sistema de logging de telemetría
@@ -56,5 +61,58 @@ void telemetry_dump_log(void);
  * limpiar registros antiguos y liberar espacio en el sistema de archivos.
  */
 void telemetry_log_clear(void);
+
+/**
+ * @brief Escribe datos de telemetría de sistema en su archivo dedicado
+ * @param fmt Formato printf
+ * @param ... Argumentos variables
+ */
+void telemetry_log_system(const char *fmt, ...);
+
+/**
+ * @brief Escribe datos de telemetría de potencia en su archivo dedicado
+ * @param fmt Formato printf
+ * @param ... Argumentos variables
+ */
+void telemetry_log_power(const char *fmt, ...);
+
+/**
+ * @brief Escribe datos de telemetría de temperatura en su archivo dedicado
+ * @param fmt Formato printf
+ * @param ... Argumentos variables
+ */
+void telemetry_log_temperature(const char *fmt, ...);
+
+/**
+ * @brief Escribe datos de telemetría de comunicaciones en su archivo dedicado
+ * @param fmt Formato printf
+ * @param ... Argumentos variables
+ */
+void telemetry_log_comms(const char *fmt, ...);
+
+/**
+ * @brief Vuelca el contenido del archivo de sistema por Serial
+ */
+void telemetry_dump_system_log(void);
+
+/**
+ * @brief Vuelca el contenido del archivo de potencia por Serial
+ */
+void telemetry_dump_power_log(void);
+
+/**
+ * @brief Vuelca el contenido del archivo de temperatura por Serial
+ */
+void telemetry_dump_temperature_log(void);
+
+/**
+ * @brief Vuelca el contenido del archivo de comunicaciones por Serial
+ */
+void telemetry_dump_comms_log(void);
+
+/**
+ * @brief Vuelca todos los archivos de telemetría por Serial
+ */
+void telemetry_dump_all_logs(void);
 
 #endif // TELEMETRY_LOGGER_H

@@ -1,0 +1,11 @@
+# Dependencias Python para ESP32 → Fomalhaut Bridge
+# Instalación: pip install -r requirements.txt
+
+# Comunicación serial con ESP32
+pyserial>=3.5
+
+# Peticiones HTTP al servidor Java-Spring
+requests>=2.31.0
+
+# (Opcional) Modo interactivo para debugging
+ipython>=8.0.0

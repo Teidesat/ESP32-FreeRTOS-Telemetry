@@ -93,4 +93,15 @@ void vTelemetryProcessorTask(void *pvParameters);
  */
 void vTelemetryTransmitterTask(void *pvParameters);
 
+/**
+ * @brief Handles de tareas para diagnóstico de stack
+ *
+ * @details Estos handles permiten consultar el "high water mark" del stack
+ * con uxTaskGetStackHighWaterMark() y así ajustar el tamaño de pila real
+ * en modo debug.
+ */
+extern TaskHandle_t gTaskCollectHandle;
+extern TaskHandle_t gTaskProcessHandle;
+extern TaskHandle_t gTaskTransmitHandle;
+
 #endif /* TELEMETRY_TASKS_H */

@@ -1,0 +1,27 @@
+{
+  "serial": {
+    "port": "/dev/ttyUSB0",
+    "baudrate": 115200,
+    "timeout": 1,
+    "_comment": "Configuración del puerto serial. En Linux suele ser /dev/ttyUSB0 o /dev/ttyACM0. En Windows: COM3, COM4, etc."
+  },
+  "server": {
+    "base_url": "http://localhost:8080",
+    "endpoints": {
+      "telemetry": "/api/telemetry",
+      "system": "/api/telemetry/system",
+      "power": "/api/telemetry/power",
+      "temperature": "/api/telemetry/temperature",
+      "comms": "/api/telemetry/comms"
+    },
+    "_comment": "Configuración del servidor Java-Spring. Ajusta la base_url y endpoints según tu backend."
+  },
+  "debug": true,
+  "batch_size": 10,
+  "retry_attempts": 3,
+  "_info": {
+    "description": "Configuración del bridge ESP32 → Fomalhaut",
+    "version": "1.0",
+    "author": "TeideSat"
+  }
+}
