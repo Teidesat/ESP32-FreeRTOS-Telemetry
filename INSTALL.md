@@ -31,7 +31,7 @@ docker --version       # Opcional
 
 ---
 
-## 🚀 MÉTODO 1: Docker Compose (Recomendado) ⭐
+## 🚀 Docker Compose
 
 **Ventajas:** Más fácil, todo automático  
 **Requisito:** Docker instalado
@@ -89,78 +89,6 @@ Ya deberías ver los logs aparecer en tiempo real con:
 
 ---
 
-## 🖥️ MÉTODO 2: Ejecución Local (Sin Docker)
-
-**Requisitos:** Java, Maven, Python3
-
-### Paso 1: Compilar el Backend
-
-```bash
-cd backend
-mvn clean package
-```
-
-Esto tomará 1-2 minutos la primera vez (descargará dependencias).
-
-### Paso 2: Ejecutar el Backend
-
-```bash
-java -jar target/fomalhaut-backend-1.0.0.jar
-```
-
-Deberías ver algo como:
-```
-Started FomalhautBackendApplication in X.XXX seconds
-```
-
-### Paso 3: Ejecutar el Frontend (Nueva Terminal)
-
-```bash
-cd Fomalhaut
-npm install
-npm run dev
-```
-
-Deberías ver:
-```
-VITE v6.0.5  ready in XXX ms
-
-➜  Local:   http://localhost:5173/
-```
-
-### Paso 4: Instalar dependencias Python del Bridge
-
-```bash
-cd bridge
-pip install -r requirements.txt
-```
-
-### Paso 5: Generar datos de prueba (Nueva Terminal)
-
-```bash
-cd bridge
-python3 simulate_esp32.py | python3 esp32_to_fomalhaut_bridge.py &
-```
-
-Verás logs como:
-```
-[12:30:45] [Sistema] CPU: 45%, RAM: 234KB
-✅ [system] Enviado → 200
-```
-
-### Paso 6: Abre el Frontend
-
-```
-http://localhost:5173/
-```
-
-O si está en puerto 20002:
-```
-http://localhost:20002/
-```
-
----
-
 ## 📱 Con ESP32 Real Conectado
 
 Si tienes un ESP32 físico conectado por USB:
@@ -199,8 +127,6 @@ Cambia:
   }
 }
 ```
-
-Guarda con `Ctrl+X`, `Y`, `Enter`
 
 ### Paso 4: Ejecuta el Bridge
 
@@ -421,12 +347,3 @@ docker-compose up -d
 4. **Especificación API:** [bridge/BACKEND_SPEC.md](bridge/BACKEND_SPEC.md)
 
 ---
-
-**¿Todo listo?** 🚀
-
-Ve a: **http://localhost:20002** → Click en **"Logs"** → ¡Disfruta viendo los datos en tiempo real!
-
----
-
-*Última actualización: Diciembre 2025*  
-*TeideSat Project*
