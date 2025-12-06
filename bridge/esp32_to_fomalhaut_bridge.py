@@ -45,7 +45,7 @@ class ESP32Bridge:
                     "timeout": 1
                 },
                 "server": {
-                    "base_url": "http://localhost:8080",
+                    "base_url": "http://localhost:20001",
                     "endpoints": {
                         "telemetry": "/api/telemetry",
                         "system": "/api/telemetry/system",
@@ -54,9 +54,10 @@ class ESP32Bridge:
                         "comms": "/api/telemetry/comms"
                     }
                 },
-                "debug": True,
+                "debug": False,
                 "batch_size": 10,
-                "retry_attempts": 3
+                "retry_attempts": 3,
+                "retry_delay": 1
             }
             with open(config_path, 'w') as f:
                 json.dump(default_config, f, indent=2)
@@ -79,73 +80,57 @@ class ESP32Bridge:
     
     def parse_log_line(self, line: str) -> Optional[Dict]:
         """
-        Parsea una línea de log del ESP32 y extrae información estructurada
+        Parsea una línea de log del ESP32.
         
-        Ejemplos de formatos esperados:
-        - [Sistema] CPU: 45%, RAM: 234KB
-        - [Potencia] Voltaje: 3.7V, Corriente: 0.5A
-        - [Temperatura] Sensor1: 25.3°C
-        - [Comms] RSSI: -65dBm, SNR: 8dB
+        Ahora el ESP32 envía datos en formato JSON:
+        {"type":"system","cpuUsage":45,"memoryFree":234567,...}
+        {"type":"power","voltage":3.7,"current":0.5,...}
+        {"type":"temperature","obcTemp":25.3,...}
+        {"type":"comms","rssi":-65,"snr":8,...}
+        
+        También ignora logs de texto que no sean JSON.
         """
         line = line.strip()
         if not line or line.startswith('---') or line.startswith('==='):
             return None
         
-        timestamp = datetime.now().isoformat()
+        # Solo procesar líneas que comienzan con { (JSON)
+        if not line.startswith('{'):
+            # Ignorar logs de texto que no sean JSON
+            return None
         
-        # Detectar tipo de telemetría por patrones
-        telemetry_data = {
-            'timestamp': timestamp,
-            'raw_line': line,
-            'type': 'general'
-        }
+        try:
+            # Parsear JSON directamente
+            json_data = json.loads(line)
+            telemetry_type = json_data.get('type', 'general')
+            
+            # No enviar logs de tipo "general" que no sean de nuestros tipos específicos
+            if telemetry_type == 'general':
+                return None
+            
+            # Validar que sea uno de los tipos conocidos
+            valid_types = ['system', 'power', 'temperature', 'comms']
+            if telemetry_type not in valid_types:
+                return None
+            
+            # Agregar timestamp
+            json_data['timestamp'] = datetime.now().isoformat()
+            return json_data
         
-        # Sistema: CPU, RAM, Stack
-        if 'CPU' in line or 'RAM' in line or 'Stack' in line:
-            telemetry_data['type'] = 'system'
-            cpu_match = re.search(r'CPU[:\s]+(\d+)%', line)
-            ram_match = re.search(r'RAM[:\s]+(\d+)', line)
-            if cpu_match:
-                telemetry_data['cpu_usage'] = int(cpu_match.group(1))
-            if ram_match:
-                telemetry_data['ram_free'] = int(ram_match.group(1))
-        
-        # Potencia: Voltaje, Corriente
-        elif 'Voltaje' in line or 'Voltage' in line or 'Corriente' in line or 'Current' in line:
-            telemetry_data['type'] = 'power'
-            voltage_match = re.search(r'Voltaje[:\s]+([\d.]+)', line)
-            current_match = re.search(r'Corriente[:\s]+([\d.]+)', line)
-            if voltage_match:
-                telemetry_data['voltage'] = float(voltage_match.group(1))
-            if current_match:
-                telemetry_data['current'] = float(current_match.group(1))
-        
-        # Temperatura
-        elif 'Temp' in line or '°C' in line:
-            telemetry_data['type'] = 'temperature'
-            temp_match = re.search(r'([\d.]+)\s*°?C', line)
-            if temp_match:
-                telemetry_data['temperature'] = float(temp_match.group(1))
-        
-        # Comunicaciones: RSSI, SNR, Paquetes
-        elif 'RSSI' in line or 'SNR' in line or 'Paquetes' in line or 'Packets' in line:
-            telemetry_data['type'] = 'comms'
-            rssi_match = re.search(r'RSSI[:\s]+(-?\d+)', line)
-            snr_match = re.search(r'SNR[:\s]+(-?\d+)', line)
-            if rssi_match:
-                telemetry_data['rssi'] = int(rssi_match.group(1))
-            if snr_match:
-                telemetry_data['snr'] = int(snr_match.group(1))
-        
-        return telemetry_data
+        except json.JSONDecodeError:
+            # No es JSON válido, ignorar
+            return None
     
     def send_to_server(self, data: Dict) -> bool:
         """Envía datos de telemetría al servidor Fomalhaut"""
         telemetry_type = data.get('type', 'general')
         
+        # Ignorar logs de tipo "general"
+        if telemetry_type == 'general':
+            return False
+        
         # Determinar endpoint según el tipo
-        endpoint_key = telemetry_type if telemetry_type != 'general' else 'telemetry'
-        endpoint = self.config['server']['endpoints'].get(endpoint_key, '/api/telemetry')
+        endpoint = self.config['server']['endpoints'].get(telemetry_type, '/api/telemetry')
         url = self.config['server']['base_url'] + endpoint
         
         headers = {
@@ -153,23 +138,24 @@ class ESP32Bridge:
             'User-Agent': 'ESP32-Bridge/1.0'
         }
         
-        for attempt in range(self.config['retry_attempts']):
+        for attempt in range(self.config.get('retry_attempts', 3)):
             try:
                 response = self.session.post(url, json=data, headers=headers, timeout=5)
                 if response.status_code in [200, 201, 202]:
                     self.stats['packets_sent'] += 1
-                    if self.config['debug']:
-                        print(f"✅ [{telemetry_type}] Enviado → {response.status_code}")
+                    if self.config.get('debug', False):
+                        print(f"✅ [{telemetry_type.upper()}] Enviado → {response.status_code}")
                     return True
                 else:
-                    print(f"⚠️  Respuesta inesperada: {response.status_code}")
+                    print(f"⚠️  [{telemetry_type}] Respuesta inesperada: {response.status_code}")
             except requests.exceptions.ConnectionError:
                 if attempt == 0:
                     print(f"⚠️  No se pudo conectar al servidor en {url}")
                     print(f"💡 Verifica que el servidor Java-Spring esté ejecutándose")
                 time.sleep(1)
             except requests.exceptions.Timeout:
-                print(f"⏱️  Timeout en intento {attempt + 1}/{self.config['retry_attempts']}")
+                if self.config.get('debug', False):
+                    print(f"⏱️  Timeout en intento {attempt + 1}/{self.config.get('retry_attempts', 3)}")
             except Exception as e:
                 print(f"❌ Error al enviar datos: {e}")
                 break
@@ -184,7 +170,7 @@ class ESP32Bridge:
         print("="*60)
         print(f"📡 Puerto Serial: {self.config['serial']['port']}")
         print(f"🌐 Servidor: {self.config['server']['base_url']}")
-        print(f"🐛 Debug: {'ON' if self.config['debug'] else 'OFF'}")
+        print(f"🐛 Debug: {'ON' if self.config.get('debug', False) else 'OFF'}")
         print("="*60 + "\n")
         
         if not self.connect_serial():
@@ -201,7 +187,7 @@ class ESP32Bridge:
                         self.stats['lines_read'] += 1
                         
                         # Mostrar línea cruda si debug está activado
-                        if self.config['debug']:
+                        if self.config.get('debug', False):
                             print(f"📥 {line.strip()}")
                         
                         # Parsear y enviar al servidor

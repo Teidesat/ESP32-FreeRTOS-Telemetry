@@ -1,0 +1,5 @@
+com/teidesat/fomalhaut/model/Telemetry.class
+com/teidesat/fomalhaut/repository/TelemetryRepository.class
+com/teidesat/fomalhaut/FomalhautBackendApplication$1.class
+com/teidesat/fomalhaut/controller/TelemetryController.class
+com/teidesat/fomalhaut/FomalhautBackendApplication.class

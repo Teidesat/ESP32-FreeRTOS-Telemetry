@@ -63,6 +63,15 @@ void telemetry_dump_log(void);
 void telemetry_log_clear(void);
 
 /**
+ * @brief Limpia todos los archivos de telemetría
+ * 
+ * @details Trunca todos los archivos de telemetría (sistema, potencia,
+ * temperatura, comunicaciones) para comenzar con registros limpios.
+ * Se llama automáticamente en telemetry_logger_init().
+ */
+void telemetry_clear_all_logs(void);
+
+/**
  * @brief Escribe datos de telemetría de sistema en su archivo dedicado
  * @param fmt Formato printf
  * @param ... Argumentos variables

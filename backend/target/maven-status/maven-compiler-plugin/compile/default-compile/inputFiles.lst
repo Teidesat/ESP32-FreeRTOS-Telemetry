@@ -1,0 +1,4 @@
+/app/src/main/java/com/teidesat/fomalhaut/controller/TelemetryController.java
+/app/src/main/java/com/teidesat/fomalhaut/FomalhautBackendApplication.java
+/app/src/main/java/com/teidesat/fomalhaut/model/Telemetry.java
+/app/src/main/java/com/teidesat/fomalhaut/repository/TelemetryRepository.java

@@ -41,7 +41,7 @@ void vTelemetryCollectorTask(void *pvParameters) {
 
   for(;;) {
     telemetry_acquisition_cycle();
-    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(9000)); // 9 segundos
+    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(2000)); // 2 segundos (antes era 9)
   }
 }
 

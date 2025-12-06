@@ -84,7 +84,7 @@ parsed_data = parse_log_line(line)
 ### 3️⃣ Envío al Servidor
 ```python
 requests.post(
-    "http://localhost:8080/api/telemetry/system",
+    "http://localhost:20001/api/telemetry/system",
     json=parsed_data
 )
 # → HTTP 200 OK
@@ -141,14 +141,14 @@ monitor_speed = 115200
     "baudrate": 115200
   },
   "server": {
-    "base_url": "http://localhost:8080"
+    "base_url": "http://localhost:20001"
   }
 }
 ```
 
 ### Backend (`application.properties`)
 ```properties
-server.port=8080
+server.port=20001
 spring.application.name=Fomalhaut-Backend
 ```
 
@@ -158,7 +158,7 @@ export default defineConfig({
   server: {
     port: 20001,
     proxy: {
-      '/api': 'http://localhost:8080'
+      '/api': 'http://localhost:20001'
     }
   }
 })

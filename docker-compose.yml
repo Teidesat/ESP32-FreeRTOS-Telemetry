@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  # Backend Java-Spring
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fomalhaut-backend
+    ports:
+      - "20001:20001"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SERVER_PORT=20001
+    networks:
+      - fomalhaut-network
+    restart: unless-stopped
+
+  # Frontend React
+  frontend:
+    build:
+      context: ./Fomalhaut
+      dockerfile: Dockerfile
+    container_name: fomalhaut-frontend
+    ports:
+      - "20002:20001"
+    environment:
+      - VITE_API_URL=http://localhost:20001/api
+    networks:
+      - fomalhaut-network
+    restart: unless-stopped
+
+networks:
+  fomalhaut-network:
+    driver: bridge

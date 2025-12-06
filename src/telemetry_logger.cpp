@@ -25,6 +25,10 @@ bool telemetry_logger_init(void) {
   }
   s_logger_ready = true;
   Serial.printf("[Logger] OK. Archivo: %s\n", TELEMETRY_LOG_FILE);
+  
+  // Limpiar todos los archivos de telemetría al inicio
+  telemetry_clear_all_logs();
+  
   return true;
 }
 
@@ -78,6 +82,28 @@ void telemetry_log_clear(void) {
     // Si no existe aún, no pasa nada
     Serial.println("[Logger] Log aún no existe; nada que truncar");
   }
+}
+
+static void clear_file(const char *filename) {
+  if (!s_logger_ready) return;
+  File f = LittleFS.open(filename, FILE_WRITE);
+  if (f) {
+    f.close();
+  }
+}
+
+void telemetry_clear_all_logs(void) {
+  if (!s_logger_ready) return;
+  
+  Serial.println("[Logger] Limpiando todos los archivos de telemetría...");
+  
+  clear_file(TELEMETRY_LOG_FILE);
+  clear_file(TELEMETRY_SYSTEM_LOG);
+  clear_file(TELEMETRY_POWER_LOG);
+  clear_file(TELEMETRY_TEMP_LOG);
+  clear_file(TELEMETRY_COMMS_LOG);
+  
+  Serial.println("[Logger] ✅ Todos los archivos de telemetría han sido limpiados");
 }
 
 // ============================================================================

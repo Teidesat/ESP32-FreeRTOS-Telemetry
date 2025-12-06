@@ -37,7 +37,7 @@ Edita `config.json` según tu entorno:
     "baudrate": 115200
   },
   "server": {
-    "base_url": "http://localhost:8080",  // URL del servidor Java-Spring
+    "base_url": "http://localhost:20001",  // URL del servidor Java-Spring
     "endpoints": {
       "telemetry": "/api/telemetry",
       "system": "/api/telemetry/system",
@@ -189,7 +189,7 @@ El bridge parsea automáticamente logs del ESP32 y los estructura en JSON:
 ### Error: "No se pudo conectar al servidor"
 
 ```
-⚠️  No se pudo conectar al servidor en http://localhost:8080
+⚠️  No se pudo conectar al servidor en http://localhost:20001
 💡 Verifica que el servidor Java-Spring esté ejecutándose
 ```
 
