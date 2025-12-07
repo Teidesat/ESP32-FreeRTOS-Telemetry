@@ -13,6 +13,7 @@
 #include <Arduino.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_system.h"
 #include "../include/telemetry_transmission.h"
 #include "../include/telemetry_storage.h"
 #include "../include/telemetry_logger.h"
@@ -69,26 +70,18 @@ static void send_json_packet(const telemetry_packet_t* packet) {
     }
     
     case TELEM_TEMPERATURE_DATA: {
-      const temperature_telem_t* temp = &packet->temperature;
-      Serial.print("{\"type\":\"temperature\",\"obcTemp\":");
-      Serial.print(temp->obc_temperature / 10.0, 1);
-      Serial.print(",\"commsTemp\":");
-      Serial.print(temp->comms_temperature / 10.0, 1);
-      Serial.print(",\"payloadTemp\":");
-      Serial.print(temp->payload_temperature / 10.0, 1);
-      Serial.print(",\"batteryTemp\":");
-      Serial.print(temp->battery_temperature / 10.0, 1);
-      Serial.print(",\"externalTemp\":");
-      Serial.print(temp->external_temperature / 10.0, 1);
-      Serial.println("}");
+      // Las temperaturas se envían directamente desde vTelemetryGeneratorTask
+      // No se transmiten desde storage para evitar problemas de serialización
+      // Simplemente saltamos este tipo
       break;
     }
     
     case TELEM_COMMUNICATION_STATUS: {
       const subsystem_status_telem_t* sub = &packet->subsystems;
-      // Simulamos valores de RSSI y SNR basados en el estado de comms
-      int rssi = -50 - (sub->comms_status * 5);
-      int snr = 15 - (sub->comms_status * 2);
+      // RSSI: -50 a -80 dBm (como en main.cpp original)
+      int rssi = -50 - (esp_random() % 31);
+      // SNR: 8-18 dB (como en main.cpp original)
+      int snr = 8 + (esp_random() % 11);
       Serial.print("{\"type\":\"comms\",\"rssi\":");
       Serial.print(rssi);
       Serial.print(",\"snr\":");

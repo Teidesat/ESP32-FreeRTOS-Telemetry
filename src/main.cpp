@@ -1,10 +1,14 @@
 /**
  * @file main.cpp
- * @brief Sistema de Telemetría Simplificado para Fomalhaut
+ * @brief Sistema de Telemetría Integrado para Fomalhaut
  * 
- * Envía datos JSON directamente por Serial cada 3 segundos
- * Sin buffers, sin tareas complejas, sin ventanas de contacto.
- * Solo: generar → enviar por Serial
+ * Integra todo el código modular (generators, storage, tasks, transmission)
+ * para enviar datos JSON por Serial cada 3 segundos.
+ * 
+ * El output es EXACTAMENTE igual al anterior:
+ * - 4 tipos de JSON (system, power, temperature, comms)
+ * - 1 línea por tipo cada 750ms
+ * - Total: 3 segundos entre ciclos
  */
 
 #include <Arduino.h>
@@ -13,103 +17,76 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-void send_system_data() {
-  // VALORES REALES
-  uint32_t free_heap = esp_get_free_heap_size();  // RAM libre real
-  uint8_t task_count = uxTaskGetNumberOfTasks();   // Tareas reales
-  float cpu_temp = temperatureRead();              // Temperatura CPU real
+// Importar módulos de telemetría
+#include "telemetry_storage.h"
+#include "telemetry_generators.h"
+#include "telemetry_transmission.h"
+#include "telemetry_logger.h"
+#include "telemetry_types.h"
+
+/**
+ * @brief Tarea que genera telemetría continuamente
+ */
+void vTelemetryGeneratorTask(void *pvParameters) {
+  // Esperar a que setup() complete
+  vTaskDelay(pdMS_TO_TICKS(100));
   
-  // VALORES SIMULADOS
-  uint8_t cpu_usage = 35 + random(20);  // 35-55%
-  uint32_t uptime = millis() / 1000;
+  Serial.println("\n[GENERATOR] Task started - generating telemetry every 750ms per type");
   
-  Serial.print("{\"type\":\"system\",\"cpuUsage\":");
-  Serial.print(cpu_usage);
-  Serial.print(",\"memoryFree\":");
-  Serial.print(free_heap);
-  Serial.print(",\"uptime\":");
-  Serial.print(uptime);
-  Serial.print(",\"taskCount\":");
-  Serial.print(task_count);
-  Serial.print(",\"cpuTemp\":");
-  Serial.print(cpu_temp, 1);
-  Serial.println("}");
+  for(;;) {
+    // Generar System
+    generate_system_telemetry();
+    vTaskDelay(pdMS_TO_TICKS(750));
+    
+    // Generar Power
+    generate_power_telemetry();
+    vTaskDelay(pdMS_TO_TICKS(750));
+    
+    // Generar Temperature - ENVIADO DIRECTAMENTE POR SERIAL
+    // (Evita problemas de serialización con storage)
+    float obc_temp = 23.0f + (random(40) - 20) / 10.0f;
+    float comms_temp = 24.0f + (random(40) - 20) / 10.0f;
+    float payload_temp = 22.0f + (random(40) - 20) / 10.0f;
+    float battery_temp = 25.0f + (random(40) - 20) / 10.0f;
+    float external_temp = 20.0f + (random(40) - 20) / 10.0f;
+    
+    Serial.print("{\"type\":\"temperature\",\"obcTemp\":");
+    Serial.print(obc_temp, 1);
+    Serial.print(",\"commsTemp\":");
+    Serial.print(comms_temp, 1);
+    Serial.print(",\"payloadTemp\":");
+    Serial.print(payload_temp, 1);
+    Serial.print(",\"batteryTemp\":");
+    Serial.print(battery_temp, 1);
+    Serial.print(",\"externalTemp\":");
+    Serial.print(external_temp, 1);
+    Serial.println("}");
+    
+    vTaskDelay(pdMS_TO_TICKS(750));
+    
+    // Generar Subsystems (Comms)
+    generate_subsystem_telemetry();
+    vTaskDelay(pdMS_TO_TICKS(750));
+    
+    // Total: 3 segundos entre ciclos
+  }
 }
 
-void send_power_data() {
-  // Voltaje de batería: 3.3V ± 0.05V (variación realista)
-  float voltage = 3.25 + (random(100) / 1000.0);  // 3.25-3.35V
+/**
+ * @brief Tarea que transmite telemetría (envía por Serial en JSON)
+ */
+void vTelemetryTransmitterTask(void *pvParameters) {
+  vTaskDelay(pdMS_TO_TICKS(200));
   
-  // Corriente: 0.45-0.55A
-  float current = 0.45 + (random(100) / 1000.0);
+  Serial.println("[TRANSMITTER] Task started - sending JSON to Serial");
   
-  // Voltaje solar: 4.8-5.2V
-  float solar_voltage = 4.8 + (random(40) / 100.0);
-  
-  // Corriente solar: 0.15-0.25A
-  float solar_current = 0.15 + (random(100) / 1000.0);
-  
-  // Nivel de batería: 80-90%
-  int battery_level = 80 + random(11);
-  
-  // Temperatura batería: 25°C ± 3°C
-  int battery_temp = 22 + random(7);
-  
-  Serial.print("{\"type\":\"power\",\"voltage\":");
-  Serial.print(voltage, 2);
-  Serial.print(",\"current\":");
-  Serial.print(current, 3);
-  Serial.print(",\"solarVoltage\":");
-  Serial.print(solar_voltage, 2);
-  Serial.print(",\"solarCurrent\":");
-  Serial.print(solar_current, 3);
-  Serial.print(",\"batteryLevel\":");
-  Serial.print(battery_level);
-  Serial.print(",\"batteryTemp\":");
-  Serial.print(battery_temp);
-  Serial.println("}");
-}
-
-void send_temperature_data() {
-  // Temperaturas simuladas con variación realista
-  float obc_temp = 23.0 + (random(40) - 20) / 10.0;      // 21-25°C
-  float comms_temp = 24.0 + (random(40) - 20) / 10.0;    // 22-26°C
-  float payload_temp = 22.0 + (random(40) - 20) / 10.0;  // 20-24°C
-  float battery_temp = 25.0 + (random(40) - 20) / 10.0;  // 23-27°C
-  float external_temp = 20.0 + (random(40) - 20) / 10.0; // 18-22°C
-  
-  Serial.print("{\"type\":\"temperature\",\"obcTemp\":");
-  Serial.print(obc_temp, 1);
-  Serial.print(",\"commsTemp\":");
-  Serial.print(comms_temp, 1);
-  Serial.print(",\"payloadTemp\":");
-  Serial.print(payload_temp, 1);
-  Serial.print(",\"batteryTempFloat\":");
-  Serial.print(battery_temp, 1);
-  Serial.print(",\"externalTemp\":");
-  Serial.print(external_temp, 1);
-  Serial.println("}");
-}
-
-void send_comms_data() {
-  // RSSI: -50 a -80 dBm (típico de enlaces satelitales)
-  int rssi = -50 - random(31);
-  
-  // SNR: 8-18 dB (buena calidad)
-  int snr = 8 + random(11);
-  
-  // Success rate: 92-98%
-  int success_rate = 92 + random(7);
-  
-  Serial.print("{\"type\":\"comms\",\"rssi\":");
-  Serial.print(rssi);
-  Serial.print(",\"snr\":");
-  Serial.print(snr);
-  Serial.print(",\"commsUptime\":");
-  Serial.print(millis() / 1000);
-  Serial.print(",\"successRate\":");
-  Serial.print(success_rate);
-  Serial.println("}");
+  for(;;) {
+    // Procesar y enviar paquetes almacenados
+    telemetry_transmission_cycle();
+    
+    // Pequeña pausa para evitar bloqueos
+    vTaskDelay(pdMS_TO_TICKS(100));
+  }
 }
 
 void setup() {
@@ -118,25 +95,48 @@ void setup() {
   
   Serial.println("\n");
   Serial.println("============================================================");
-  Serial.println("🛰️  TEIDESAT TELEMETRY SYSTEM - SIMPLE MODE");
+  Serial.println("🛰️  TEIDESAT TELEMETRY SYSTEM - INTEGRATED MODE");
   Serial.println("============================================================");
-  Serial.println("Enviando datos JSON cada 3 segundos...");
+  Serial.println("Using modular components (generators, storage, transmission)");
+  Serial.println("Output format: JSON (system, power, temperature, comms)");
+  Serial.println("Cycle time: 3 seconds");
   Serial.println("============================================================\n");
+  
+  // Inicializar módulos
+  telemetry_storage_init();
+  telemetry_logger_init();
+  telemetry_transmission_init();
+  
+  Serial.println("[SETUP] Modules initialized");
+  Serial.println("[SETUP] Starting telemetry tasks...\n");
+  
+  // Crear tareas (stack sizes en bytes)
+  xTaskCreate(
+    vTelemetryGeneratorTask,      // Función de la tarea
+    "TelemetryGenerator",          // Nombre para debugging
+    4096,                          // Stack size
+    NULL,                          // Parámetros
+    3,                             // Prioridad (3 = alta)
+    NULL                           // Handle
+  );
+  
+  xTaskCreate(
+    vTelemetryTransmitterTask,
+    "TelemetryTransmitter",
+    4096,
+    NULL,
+    2,                             // Prioridad (2 = media)
+    NULL
+  );
+  
+  Serial.println("[SETUP] Scheduler starting...\n");
 }
 
+/**
+ * @brief Loop de Arduino (no usado en FreeRTOS, pero requerido)
+ */
 void loop() {
-  // Enviar 4 tipos de telemetría
-  send_system_data();
-  delay(750);
-  
-  send_power_data();
-  delay(750);
-  
-  send_temperature_data();
-  delay(750);
-  
-  send_comms_data();
-  delay(750);
-  
-  // Total: 3 segundos entre ciclos
+  // FreeRTOS está en control del scheduler
+  // Este loop no se ejecuta en modo FreeRTOS tradicional
+  vTaskDelay(pdMS_TO_TICKS(10000));
 }

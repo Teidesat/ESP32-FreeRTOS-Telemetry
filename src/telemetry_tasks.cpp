@@ -1,21 +1,19 @@
 /**
- * @file telemetry_tasks.c
- * @brief Tareas FreeRTOS del sistema de telemetría
+ * @file telemetry_tasks.cpp
+ * @brief Tareas FreeRTOS adicionales (no usadas en main.cpp actualmente)
  * @author Aarón Ramírez Valencia - TeideSat
  * @date 20-10-2025
  * 
  * @details
- * Este archivo contiene la implementación de las tareas FreeRTOS que componen
- * el sistema de telemetría del satélite TeideSat.
+ * Este archivo contiene tareas FreeRTOS adicionales que pueden usarse
+ * en futuras implementaciones o configuraciones alternativas.
  * 
- * El sistema está compuesto por tres tareas principales que ejecutan
- * concurrentemente:
- * - Recolector: Genera y almacena datos de telemetría
- * - Procesador: Procesa y visualiza los datos almacenados
- * - Transmisor: Simula el envío de datos a estación terrestre
+ * Las tareas principales se definen ahora en main.cpp:
+ * - vTelemetryGeneratorTask: Genera datos de telemetría
+ * - vTelemetryTransmitterTask: Transmite datos por serial
  * 
- * @note Las tareas están optimizadas para entorno WOKWI con intervalos
- * reducidos para facilitar la visualización durante pruebas.
+ * @note Las tareas vTelemetryCollectorTask y vTelemetryProcessorTask
+ * se mantienen aquí como referencia para futuras expansiones.
  */
 
 #include "freertos/FreeRTOS.h"
@@ -25,15 +23,18 @@
 #include "../include/telemetry_generators.h"
 #include "../include/telemetry_tasks.h"
 #include "../include/telemetry_logger.h"
+#include "../include/telemetry_acquisition.h"
+#include "../include/telemetry_processing.h"
+
 // Handles globales para diagnóstico de stack
 TaskHandle_t gTaskCollectHandle = NULL;
 TaskHandle_t gTaskProcessHandle = NULL;
 TaskHandle_t gTaskTransmitHandle = NULL;
-#include "../include/telemetry_acquisition.h"
-#include "../include/telemetry_processing.h"
-#include "../include/telemetry_transmission.h"
 
-
+/**
+ * @brief Tarea de recolección (NO USADA EN MAIN.CPP)
+ * @note Mantiene la interfaz compatible con adquisición de datos
+ */
 void vTelemetryCollectorTask(void *pvParameters) {
   TickType_t xLastWakeTime = xTaskGetTickCount();
   telemetry_logf("🚀 Telemetry Collector Task Started");
@@ -41,11 +42,14 @@ void vTelemetryCollectorTask(void *pvParameters) {
 
   for(;;) {
     telemetry_acquisition_cycle();
-    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(2000)); // 2 segundos (antes era 9)
+    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(2000));
   }
 }
 
-
+/**
+ * @brief Tarea de procesamiento (NO USADA EN MAIN.CPP)
+ * @note Mantiene la interfaz compatible con procesamiento de datos
+ */
 void vTelemetryProcessorTask(void *pvParameters) {
   telemetry_logf("🔧 Telemetry Processor Task Started");
   telemetry_processing_init();
@@ -55,16 +59,4 @@ void vTelemetryProcessorTask(void *pvParameters) {
       vTaskDelay(pdMS_TO_TICKS(1000));
     }
   }
-}
-
-void vTelemetryTransmitterTask(void *pvParameters) {
-  telemetry_logf("📡 Telemetry Transmitter Task Started");
-  telemetry_transmission_init();
-  for(;;) {
-    telemetry_transmission_cycle();
-    vTaskDelay(pdMS_TO_TICKS(2000));
-  }
-
-  // Crear tareas desde un punto común usando handles
-  // Nota: Este archivo no define setup(), pero las tareas se crean en main.cpp.
 }
