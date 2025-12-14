@@ -41,24 +41,21 @@ void generate_system_telemetry(void) {
   system_telem.header.sequence = sequence_number++;
   system_telem.header.priority = 1;
 
-  // Uptime real basado en ticks FreeRTOS
+  // Uptime real basado en ticks FreeRTOS (configTICK_RATE_HZ normalmente = 1000 en Arduino ESP32)
   uint32_t uptime_sec = (uint32_t)(xTaskGetTickCount() / configTICK_RATE_HZ);
   system_telem.uptime_seconds = uptime_sec;
-  generation_cycle_count++;
+  generation_cycle_count++; // Incrementar ciclo de generación independiente del uptime real
 
   // Estados específicos del ESP32
   system_telem.system_mode = 1; // nominal
-  
-  // CPU usage: 35-55% (simulado, como en main.cpp original)
-  system_telem.cpu_usage = 35 + (esp_random() % 20);
-  
+  system_telem.cpu_usage = 0;   // En ESP32 no tenemos esta métrica fácil
   system_telem.stack_high_water = uxTaskGetStackHighWaterMark(NULL);
 
   // Memoria ESP32
   system_telem.heap_free = esp_get_free_heap_size();
   system_telem.task_count = uxTaskGetNumberOfTasks();
 
-  // Temperatura CPU ESP32 (real)
+  // temperatura CPU ESP32
   system_telem.cpu_temperature = temperatureRead();
   
   telemetry_store_packet((telemetry_packet_t*)&system_telem);
@@ -73,30 +70,34 @@ void generate_power_telemetry(void) {
   power_telem.header.sequence = sequence_number++;
   power_telem.header.priority = 2;
 
-  // Voltaje de batería: 3.25-3.35V (como en main.cpp original)
-  float voltage = 3.25f + ((esp_random() % 100) / 1000.0f);
-  power_telem.battery_voltage = voltage;
+  // Voltaje de batería: 3.3V ± 0.05V (variación típica de Li-Ion)
+  float voltage_variation = ((esp_random() % 100) - 50) / 1000.0f; // -0.05 a +0.05
+  power_telem.battery_voltage = 3.3f + voltage_variation;
   
-  // Corriente: 0.45-0.55A (como en main.cpp original)
-  float current = 0.45f + ((esp_random() % 100) / 1000.0f);
-  power_telem.battery_current = current;
+  // Temperatura de batería: 25°C ± 3°C
+  int8_t temp_variation = (esp_random() % 7) - 3; // -3 a +3
+  power_telem.battery_temperature = 25 + temp_variation;
   
-  // Voltaje solar: 4.8-5.2V (como en main.cpp original)
-  float solar_voltage = 4.8f + ((esp_random() % 40) / 100.0f);
-  power_telem.solar_panel_voltage = solar_voltage;
+  // Corriente de batería: 0.1A ± 0.02A
+  float current_variation = ((esp_random() % 40) - 20) / 1000.0f; // -0.02 a +0.02
+  power_telem.battery_current = 0.1f + current_variation;
   
-  // Corriente solar: 0.15-0.25A (como en main.cpp original)
-  float solar_current = 0.15f + ((esp_random() % 100) / 1000.0f);
-  power_telem.solar_panel_current = solar_current;
+  // Panel solar: 5.0V ± 0.1V (depende de iluminación)
+  float solar_v_variation = ((esp_random() % 200) - 100) / 1000.0f; // -0.1 a +0.1
+  power_telem.solar_panel_voltage = 5.0f + solar_v_variation;
   
-  // Nivel de batería: 80-90% (como en main.cpp original)
-  int battery_level = 80 + (esp_random() % 11);
-  power_telem.battery_level = battery_level;
+  // Corriente solar: 0.5A ± 0.1A
+  float solar_i_variation = ((esp_random() % 200) - 100) / 1000.0f; // -0.1 a +0.1
+  power_telem.solar_panel_current = 0.5f + solar_i_variation;
   
-  // Temperatura batería: 22-28°C (como en main.cpp original)
-  int8_t battery_temp = 22 + (esp_random() % 7);
-  power_telem.battery_temperature = battery_temp;
-  
+  // Degradación lenta de batería: 1% cada 15 minutos real.
+  uint32_t uptime_sec = (uint32_t)(xTaskGetTickCount() / configTICK_RATE_HZ);
+  uint8_t level = 85;
+  if (uptime_sec >= 900) {
+    uint32_t drop = uptime_sec / 900; // cada 15 minutos baja 1%
+    level = (drop >= 85) ? 0 : (uint8_t)(85 - drop);
+  }
+  power_telem.battery_level = level;
   power_telem.power_state = 0;
 
   telemetry_store_packet((telemetry_packet_t*)&power_telem);
@@ -104,9 +105,29 @@ void generate_power_telemetry(void) {
 
 
 void generate_temperature_telemetry(void) {
-  // Las temperaturas se envían directamente desde vTelemetryGeneratorTask
-  // Esta función no hace nada para evitar almacenar datos corruptos en storage
-  // que luego serían transmitidos por vTelemetryTransmitterTask
+  temperature_telem_t temp_telem;
+
+  temp_telem.header.type = TELEM_TEMPERATURE_DATA;
+  temp_telem.header.timestamp = xTaskGetTickCount();
+  temp_telem.header.sequence = sequence_number++;
+  temp_telem.header.priority = 1;
+
+  // OBC: 35°C ± 2°C (procesador trabaja con carga variable)
+  temp_telem.obc_temperature = 35 + ((esp_random() % 5) - 2);
+  
+  // Comms: 28°C ± 2°C (transmisor puede calentarse)
+  temp_telem.comms_temperature = 28 + ((esp_random() % 5) - 2);
+  
+  // Payload: 25°C ± 1°C (usualmente más estable)
+  temp_telem.payload_temperature = 25 + ((esp_random() % 3) - 1);
+  
+  // Batería: 22°C ± 2°C (reacción exotérmica en carga/descarga)
+  temp_telem.battery_temperature = 22 + ((esp_random() % 5) - 2);
+  
+  // Exterior: -15°C ± 5°C (exposición solar variable en órbita)
+  temp_telem.external_temperature = -15 + ((esp_random() % 11) - 5);
+
+  telemetry_store_packet((telemetry_packet_t*)&temp_telem);
 }
 
 void generate_subsystem_telemetry(void) {
@@ -121,15 +142,15 @@ void generate_subsystem_telemetry(void) {
   subsys_telem.adcs_status = 1;  
   subsys_telem.payload_status = 1;
   subsys_telem.power_status = 1;
-  
-  uint32_t uptime_sec = (uint32_t)(xTaskGetTickCount() / configTICK_RATE_HZ);
-  subsys_telem.comms_uptime = uptime_sec;
-  subsys_telem.payload_uptime = (uptime_sec > 100) ? (uptime_sec - 100) : 0;
+  uint32_t uptime_sec2 = (uint32_t)(xTaskGetTickCount() / configTICK_RATE_HZ);
+  subsys_telem.comms_uptime = uptime_sec2;
+  subsys_telem.payload_uptime = (uptime_sec2 > 100) ? (uptime_sec2 - 100) : 0;
   subsys_telem.last_command_id = 0x25;
   
-  // Success rate: 92-98% (como en main.cpp original)
-  int success_rate = 92 + (esp_random() % 7);
-  subsys_telem.command_success_rate = (uint8_t)success_rate;
+  // Success rate: 98% ± 2% (simular pequeñas fluctuaciones por ruido)
+  int variation = (esp_random() % 5) - 2; // -2 a +2
+  int success_rate = 98 + variation;
+  subsys_telem.command_success_rate = (success_rate < 0) ? 0 : ((success_rate > 100) ? 100 : (uint8_t)success_rate);
 
   telemetry_store_packet((telemetry_packet_t*)&subsys_telem);
 }

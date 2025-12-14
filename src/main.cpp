@@ -1,142 +1,126 @@
 /**
  * @file main.cpp
- * @brief Sistema de Telemetría Integrado para Fomalhaut
+ * @brief Sistema de Telemetría para Satélite TeideSat - Programa Principal
+ * @author Aarón Ramírez Valencia - TeideSat
+ * @date 20-10-2025
  * 
- * Integra todo el código modular (generators, storage, tasks, transmission)
- * para enviar datos JSON por Serial cada 3 segundos.
+ * @details
+ * Este archivo contiene la implementación principal del sistema de telemetría
+ * para el satélite TeideSat. El sistema está diseñado para ejecutarse en un
+ * ESP32 y utiliza FreeRTOS para la gestión de tareas concurrentes.
  * 
- * El output es EXACTAMENTE igual al anterior:
- * - 4 tipos de JSON (system, power, temperature, comms)
- * - 1 línea por tipo cada 750ms
- * - Total: 3 segundos entre ciclos
+ * El sistema implementa tres tareas principales:
+ * - Recolector de telemetría: Captura datos de los sensores
+ * - Procesador de telemetría: Procesa y analiza los datos capturados
+ * - Transmisor de telemetría: Envía los datos procesados
+ * 
+ * @note Este código está optimizado para ejecutarse en un ESP32-WROOM-32.
  */
 
 #include <Arduino.h>
-#include <ESPCPUTemp.h>
-#include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_system.h"
+#include "../include/telemetry_storage.h"
+#include "../include/telemetry_logger.h"
+#include "../include/telemetry_diagnostics.h"
+#include "../include/telemetry_acquisition.h"
+#include "../include/telemetry_processing.h"
+#include "../include/telemetry_transmission.h"
 
-// Importar módulos de telemetría
-#include "telemetry_storage.h"
-#include "telemetry_generators.h"
-#include "telemetry_transmission.h"
-#include "telemetry_logger.h"
-#include "telemetry_types.h"
-
-/**
- * @brief Tarea que genera telemetría continuamente
- */
-void vTelemetryGeneratorTask(void *pvParameters) {
-  // Esperar a que setup() complete
-  vTaskDelay(pdMS_TO_TICKS(100));
-  
-  Serial.println("\n[GENERATOR] Task started - generating telemetry every 750ms per type");
-  
-  for(;;) {
-    // Generar System
-    generate_system_telemetry();
-    vTaskDelay(pdMS_TO_TICKS(750));
-    
-    // Generar Power
-    generate_power_telemetry();
-    vTaskDelay(pdMS_TO_TICKS(750));
-    
-    // Generar Temperature - ENVIADO DIRECTAMENTE POR SERIAL
-    // (Evita problemas de serialización con storage)
-    float obc_temp = 23.0f + (random(40) - 20) / 10.0f;
-    float comms_temp = 24.0f + (random(40) - 20) / 10.0f;
-    float payload_temp = 22.0f + (random(40) - 20) / 10.0f;
-    float battery_temp = 25.0f + (random(40) - 20) / 10.0f;
-    float external_temp = 20.0f + (random(40) - 20) / 10.0f;
-    
-    Serial.print("{\"type\":\"temperature\",\"obcTemp\":");
-    Serial.print(obc_temp, 1);
-    Serial.print(",\"commsTemp\":");
-    Serial.print(comms_temp, 1);
-    Serial.print(",\"payloadTemp\":");
-    Serial.print(payload_temp, 1);
-    Serial.print(",\"batteryTemp\":");
-    Serial.print(battery_temp, 1);
-    Serial.print(",\"externalTemp\":");
-    Serial.print(external_temp, 1);
-    Serial.println("}");
-    
-    vTaskDelay(pdMS_TO_TICKS(750));
-    
-    // Generar Subsystems (Comms)
-    generate_subsystem_telemetry();
-    vTaskDelay(pdMS_TO_TICKS(750));
-    
-    // Total: 3 segundos entre ciclos
-  }
-}
+// Declaración de las tareas de telemetría
+void vTelemetryCollectorTask(void *pvParameters);
+void vTelemetryProcessorTask(void *pvParameters);
+void vTelemetryTransmitterTask(void *pvParameters);
 
 /**
- * @brief Tarea que transmite telemetría (envía por Serial en JSON)
+ * @brief Función de inicialización del sistema
+ * 
+ * @details Esta función se ejecuta una vez al inicio y realiza:
+ * - Inicialización de la comunicación serial
+ * - Creación de las tareas de FreeRTOS
+ * - Configuración inicial del sistema
+ * 
+ * Las tareas se crean con diferentes prioridades:
+ * - Recolector: Prioridad 2 (alta)
+ * - Procesador: Prioridad 1 (normal)
+ * - Transmisor: Prioridad 1 (normal)
  */
-void vTelemetryTransmitterTask(void *pvParameters) {
-  vTaskDelay(pdMS_TO_TICKS(200));
-  
-  Serial.println("[TRANSMITTER] Task started - sending JSON to Serial");
-  
-  for(;;) {
-    // Procesar y enviar paquetes almacenados
-    telemetry_transmission_cycle();
-    
-    // Pequeña pausa para evitar bloqueos
-    vTaskDelay(pdMS_TO_TICKS(100));
-  }
-}
-
 void setup() {
   Serial.begin(115200);
+
+  // Esperar un poco que Serial esté listo
   delay(1000);
-  
-  Serial.println("\n");
-  Serial.println("============================================================");
-  Serial.println("🛰️  TEIDESAT TELEMETRY SYSTEM - INTEGRATED MODE");
-  Serial.println("============================================================");
-  Serial.println("Using modular components (generators, storage, transmission)");
-  Serial.println("Output format: JSON (system, power, temperature, comms)");
-  Serial.println("Cycle time: 3 seconds");
-  Serial.println("============================================================\n");
-  
-  // Inicializar módulos
-  telemetry_storage_init();
+
+  // Inicializar logger y registrar algunas lineas al archivo
   telemetry_logger_init();
-  telemetry_transmission_init();
-  
-  Serial.println("[SETUP] Modules initialized");
-  Serial.println("[SETUP] Starting telemetry tasks...\n");
-  
-  // Crear tareas (stack sizes en bytes)
+
+  // Borrar el contenido previo del log para esta sesión
+  telemetry_log_clear();
+
+  telemetry_logf("Sistema de telemetría iniciando...");
+  // Escribe un identificador de arranque para poder ver claramente que proviene del fichero
+  uint32_t bootId = esp_random();
+  telemetry_logf("LOG PROOF: BOOT_ID=%08X", (unsigned)bootId);
+
+  telemetry_logf("\n🛰️  TEIDESAT SATELLITE TELEMETRY SYSTEM - ESP32 WOKWI");
+  telemetry_logf("======================================================");
+  telemetry_logf("Starting FreeRTOS tasks...");
+
+  // Crear tareas de telemetría (guardar handles para diagnóstico de stack)
+  extern TaskHandle_t gTaskCollectHandle;
+  extern TaskHandle_t gTaskProcessHandle;
+  extern TaskHandle_t gTaskTransmitHandle;
+
   xTaskCreate(
-    vTelemetryGeneratorTask,      // Función de la tarea
-    "TelemetryGenerator",          // Nombre para debugging
-    4096,                          // Stack size
-    NULL,                          // Parámetros
-    3,                             // Prioridad (3 = alta)
-    NULL                           // Handle
+    vTelemetryCollectorTask,   // Función
+    "TelemCollect",            // Nombre
+    4096,                      // Stack size
+    NULL,                      // Parámetros
+    2,                         // Prioridad
+    &gTaskCollectHandle        // Handle
   );
-  
+
   xTaskCreate(
-    vTelemetryTransmitterTask,
-    "TelemetryTransmitter",
+    vTelemetryProcessorTask,
+    "TelemProcess", 
     4096,
     NULL,
-    2,                             // Prioridad (2 = media)
-    NULL
+    1,
+    &gTaskProcessHandle
   );
-  
-  Serial.println("[SETUP] Scheduler starting...\n");
+
+  xTaskCreate(
+    vTelemetryTransmitterTask,
+    "TelemXmit",
+    4096,
+    NULL,
+    1,
+    &gTaskTransmitHandle
+  );
+
+  telemetry_logf("✅ All telemetry tasks created successfully");
+  telemetry_logf("📡 System operational - Telemetry data generation started");
+  telemetry_logf("--------------------------------------------------------");
+
+  // Inicializar diagnóstico separado
+  telemetry_diagnostics_init();
 }
 
 /**
- * @brief Loop de Arduino (no usado en FreeRTOS, pero requerido)
+ * @brief Bucle principal del programa
+ * 
+ * @details En un sistema basado en FreeRTOS, el loop principal se utiliza
+ * principalmente para tareas de mantenimiento y monitoreo. En este caso:
+ * - Muestra estadísticas del sistema cada 30 segundos
+ * - Monitorea el estado general del ESP32
+ * - Reporta uso de memoria y número de tareas
+ * 
+ * @note La mayoría del trabajo real se realiza en las tareas de FreeRTOS,
+ * no en este loop.
  */
 void loop() {
-  // FreeRTOS está en control del scheduler
-  // Este loop no se ejecuta en modo FreeRTOS tradicional
-  vTaskDelay(pdMS_TO_TICKS(10000));
+  // Delegar diagnóstico periódico al módulo de diagnóstico
+  telemetry_diagnostics_tick();
+  vTaskDelay(pdMS_TO_TICKS(1000));
 }

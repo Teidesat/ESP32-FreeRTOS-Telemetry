@@ -82,11 +82,11 @@ typedef struct {
  */
 typedef struct {
     telem_header_t header;          /**< Encabezado común */
-    float obc_temperature;          /**< Temperatura OBC (°C) */
-    float comms_temperature;        /**< Temperatura módulo comunicaciones (°C) */
-    float payload_temperature;      /**< Temperatura del payload (°C) */
-    float battery_temperature;      /**< Temperatura de la batería (°C) */
-    float external_temperature;     /**< Temperatura externa/ambiente (°C) */
+    int16_t obc_temperature;        /**< Temperatura OBC (0.1°C o °C según convención) */
+    int16_t comms_temperature;      /**< Temperatura módulo comunicaciones */
+    int16_t payload_temperature;    /**< Temperatura del payload */
+    int16_t battery_temperature;    /**< Temperatura de la batería */
+    int16_t external_temperature;   /**< Temperatura externa/ambiente */
 } temperature_telem_t;
 
 /**
