@@ -80,44 +80,50 @@ ESP32 --[Serial]--> Python Bridge --[HTTP REST]--> Java-Spring Backend --> React
 
 The bridge reads telemetry logs from the ESP32's serial port, parses them into structured JSON, and sends them to the Fomalhaut backend via HTTP POST requests.
 
-### Quick Start
+### 🚀 Inicio rápido (mínimo imprescindible)
 
-1. **Navigate to the bridge directory:**
-   ```bash
-   cd bridge
-   ```
+Prerequisitos (Linux): Python 3.8+, Docker, VS Code + PlatformIO
 
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+1) Backend (Docker)
+```bash
+cd backend
+docker build -t fomalhaut-backend:1.0 .
+docker run --rm -p 20001:20001 fomalhaut-backend:1.0
+```
 
-3. **Configure the bridge:**
-   Edit `config.json` to set your serial port and backend URL:
-   ```json
-   {
-     "serial": {
-       "port": "/dev/ttyUSB0",
-       "baudrate": 115200
-     },
-     "server": {
-       "base_url": "http://localhost:8080"
-     }
-   }
-   ```
+2) Bridge (Python)
+```bash
+cd bridge
+python3 -m venv .venv && source .venv/bin/activate
+python3 -m pip install -r requirements.txt
+# Ajusta la URL del backend
+sed -i 's|"base_url".*|"base_url": "http://localhost:20001",|' config.json
+python3 bridge.py
+```
 
-4. **Run the bridge:**
-   ```bash
-   python3 bridge.py
-   ```
+3) Firmware ESP32 (PlatformIO)
+```bash
+# En este repo
+pio run -e esp32doit-devkit-v1
+pio run -t upload -e esp32doit-devkit-v1
+pio device monitor -b 115200
+```
+
+4) Prueba sin hardware (solo backend)
+```bash
+cd bridge
+python3 test_direct.py
+```
 
 ### Documentation
 
-- **[Bridge README](bridge/README.md)** - Complete setup and usage guide
+- **[Bridge README](bridge/README.md)** – guía del puente Python
+
+- **[Backend README](backend/README.md)** – guía del servidor Java/Spring
 
 ### Supported Telemetry Types
 
-The bridge automatically parses and forwards:
+El bridge automáticamente parsea y reenvía:
 - **System:** CPU usage, RAM, stack info
 - **Power:** Voltage, current, battery status
 - **Temperature:** Sensor readings
