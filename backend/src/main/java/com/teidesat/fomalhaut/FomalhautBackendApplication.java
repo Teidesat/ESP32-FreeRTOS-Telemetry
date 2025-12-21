@@ -8,7 +8,13 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * Fomalhaut Backend Application
- * Main entry point for the Fomalhaut Ground Station backend server
+ *
+ * Punto de entrada principal del backend de Fomalhaut.
+ * Configura CORS de forma abierta para facilitar el desarrollo
+ * (orígenes `*`, métodos básicos), y arranca la aplicación.
+ *
+ * Nota: para producción, se recomienda restringir `allowedOrigins`
+ * a los dominios necesarios.
  */
 @SpringBootApplication
 public class FomalhautBackendApplication {
@@ -17,6 +23,12 @@ public class FomalhautBackendApplication {
         SpringApplication.run(FomalhautBackendApplication.class, args);
     }
 
+    /**
+     * Configuración CORS global.
+     *
+     * Permite peticiones desde cualquier origen y métodos estándar.
+     * Facilita que el bridge (Python) y UIs web accedan a los endpoints.
+     */
     @Bean
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {

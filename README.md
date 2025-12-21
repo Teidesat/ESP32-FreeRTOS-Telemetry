@@ -108,14 +108,12 @@ The bridge reads telemetry logs from the ESP32's serial port, parses them into s
 
 4. **Run the bridge:**
    ```bash
-   python3 esp32_to_fomalhaut_bridge.py
+   python3 bridge.py
    ```
 
 ### Documentation
 
 - **[Bridge README](bridge/README.md)** - Complete setup and usage guide
-- **[Architecture](bridge/ARCHITECTURE.md)** - System architecture and data flow diagrams
-- **[Backend Specification](bridge/BACKEND_SPEC.md)** - API endpoints for backend developers
 
 ### Supported Telemetry Types
 

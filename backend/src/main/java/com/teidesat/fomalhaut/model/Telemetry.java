@@ -7,8 +7,13 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * Telemetry Data Entity
- * Represents a single telemetry log entry from the ESP32
+ * Entidad de datos de Telemetría.
+ *
+ * Representa una entrada de telemetría proveniente del ESP32/bridge.
+ * Admite campos opcionales por tipo; no es necesario poblar todos
+ * los atributos para persistir.
+ *
+ * Tabla: `telemetry_data`
  */
 @Entity
 @Table(name = "telemetry_data")
@@ -17,16 +22,20 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class Telemetry {
     
+    /** Identificador autogenerado */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
+    /** Timestamp original del mensaje (puede venir del ESP32 o del bridge) */
     @Column(nullable = false)
     private String timestamp;
     
+    /** Tipo de telemetría: system, power, temperature, comms, general */
     @Column(nullable = false)
-    private String type; // system, power, temperature, comms, general
+    private String type;
     
+    /** Línea cruda opcional, útil para auditoría/debug */
     @Column(columnDefinition = "TEXT")
     private String rawLine;
     
@@ -60,6 +69,7 @@ public class Telemetry {
     private Long commsUptime;
     private Integer successRate;
     
+    /** Fecha de creación establecida automáticamente al persistir */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
     

@@ -1,286 +1,162 @@
-# 🚀 Fomalhaut Backend - Java Spring Boot
+## Fomalhaut Backend (Java/Spring)
 
-Backend REST API para el servidor de telemetría Fomalhaut. Recibe logs del puente Python ESP32 y los sirve al frontend React.
+Servidor REST que recibe telemetrías del ESP32 a través del bridge Python y las almacena en una base de datos H2 en memoria. Expone endpoints para insertar, consultar y limpiar telemetrías.
 
-## 📋 Requisitos
+### Arquitectura rápida
 
-- **Java 17+** (OpenJDK recomendado)
-- **Maven 3.8+**
-- **Puerto 20001** disponible
+- Framework: Spring Boot 3.1 (Java 17)
+- Persistencia: Spring Data JPA + H2 (in-memory)
+- Contexto REST: `server.servlet.context-path=/api` → los endpoints comienzan en `/api/...`
+- Puerto: `20001`
+- CORS: Abierto a `*` (ver bean en `FomalhautBackendApplication`).
 
-O alternativamente:
-- **Docker** + **Docker Compose**
+Estructura principal:
+- `FomalhautBackendApplication.java`: punto de entrada y configuración CORS.
+- `controller/TelemetryController.java`: endpoints REST (`/api/telemetry/...`).
+- `model/Telemetry.java`: entidad JPA que representa una línea de telemetría.
+- `repository/TelemetryRepository.java`: consultas JPA y nativas.
+- `resources/application.properties`: configuración de servidor, JPA y H2.
 
-## 🔧 Instalación
+### Endpoints
 
-### Opción 1: Ejecución Local (Sin Docker)
+Base: `http://localhost:20001/api/telemetry`
 
-#### 1. Instalar Maven (si no lo tienes)
+- `GET /api/telemetry` → lista todas las telemetrías (orden descendente por `createdAt`).
+- `GET /api/telemetry/system|power|temperature|comms` → lista por tipo.
+- `GET /api/telemetry/latest/{count}` → devuelve las últimas `count` entradas.
+- `POST /api/telemetry` → inserta telemetría general.
+- `POST /api/telemetry/system|power|temperature|comms` → inserta telemetría específica por tipo.
+- `DELETE /api/telemetry/clear` → elimina todas las telemetrías.
+- `DELETE /api/telemetry/{id}` → elimina una telemetría por ID.
 
-**Linux (Debian/Ubuntu):**
-```bash
-sudo apt update
-sudo apt install maven
+Respuestas típicas:
+- Inserción: `201 Created` + cuerpo `{status, message, id, type}`.
+- Consulta: `200 OK` + lista de objetos `Telemetry`.
+
+### Modelo de datos (`Telemetry`)
+
+Campos principales:
+- `id`: identificador autogenerado.
+- `timestamp`: recibido del bridge/ESP32 (ISO-8601 o equivalente).
+- `type`: `system`, `power`, `temperature`, `comms`, `general`.
+- `rawLine`: línea original (opcional), útil para auditoría.
+- Específicos por tipo:
+	- System: `cpuUsage`, `memoryFree`, `uptime`, `taskCount`, `cpuTemp`.
+	- Power: `voltage`, `current`, `solarVoltage`, `solarCurrent`, `batteryLevel`, `batteryTemp`.
+	- Temperature: `obcTemp`, `commsTemp`, `payloadTemp`, `batteryTempFloat`, `externalTemp`.
+	- Comms: `rssi`, `snr`, `commsUptime`, `successRate`.
+- `createdAt`: se establece automáticamente en `@PrePersist`.
+
+Nota: no es obligatorio llenar todos los campos; JSONs parciales son aceptados y persistirán sólo los campos presentes.
+
+### Ejemplos de JSON de inserción
+
+`POST /api/telemetry/system`
+```json
+{
+	"timestamp": "2025-12-21T10:00:00Z",
+	"type": "system",
+	"cpuUsage": 42,
+	"memoryFree": 230000,
+	"uptime": 3600000,
+	"taskCount": 18,
+	"cpuTemp": 47.5
+}
 ```
 
-**Linux (Fedora/RHEL):**
-```bash
-sudo dnf install maven
+`POST /api/telemetry/power`
+```json
+{
+	"timestamp": "2025-12-21T10:00:01Z",
+	"type": "power",
+	"voltage": 3.72,
+	"current": 0.51,
+	"solarVoltage": 5.0,
+	"solarCurrent": 0.2,
+	"batteryLevel": 86,
+	"batteryTemp": 32
+}
 ```
 
-**macOS:**
-```bash
-brew install maven
+`POST /api/telemetry/temperature`
+```json
+{
+	"timestamp": "2025-12-21T10:00:02Z",
+	"type": "temperature",
+	"obcTemp": 26.4,
+	"commsTemp": 27.1,
+	"payloadTemp": 25.9,
+	"batteryTempFloat": 31.2,
+	"externalTemp": 18.3
+}
 ```
 
-**Windows:**
-Descarga desde https://maven.apache.org/download.cgi
+`POST /api/telemetry/comms`
+```json
+{
+	"timestamp": "2025-12-21T10:00:03Z",
+	"type": "comms",
+	"rssi": -65,
+	"snr": 9,
+	"commsUptime": 123456,
+	"successRate": 97
+}
+```
 
-#### 2. Compilar la aplicación
+`POST /api/telemetry` (general)
+```json
+{
+	"timestamp": "2025-12-21T10:00:04Z",
+	"type": "general",
+	"rawLine": "[General] Telemetry line"
+}
+```
+
+### Cómo ejecutar (Maven) 🏃
+
+Requisitos: Java 17, Maven.
 
 ```bash
 cd backend
-mvn clean package
-```
-
-#### 3. Ejecutar el backend
-
-```bash
-java -jar target/fomalhaut-backend-1.0.0.jar
-```
-
-O usar Maven directamente:
-```bash
 mvn spring-boot:run
-```
-
-### Opción 2: Con Docker Compose (Recomendado ✅)
-
-```bash
-# Desde el directorio raíz
-docker-compose up -d
-```
-
-Esto iniciará:
-- Backend en `http://localhost:20001/api`
-- Frontend en `http://localhost:20002`
-
-## 📡 API Endpoints
-
-### GET - Obtener Logs
-
-**Todos los logs:**
-```bash
-curl http://localhost:20001/api/telemetry
-```
-
-**Solo sistema:**
-```bash
-curl http://localhost:20001/api/telemetry/system
-```
-
-**Solo potencia:**
-```bash
-curl http://localhost:20001/api/telemetry/power
-```
-
-**Solo temperatura:**
-```bash
-curl http://localhost:20001/api/telemetry/temperature
-```
-
-**Solo comunicaciones:**
-```bash
-curl http://localhost:20001/api/telemetry/comms
-```
-
-**Últimos N logs:**
-```bash
-curl http://localhost:20001/api/telemetry/latest/50
-```
-
-### POST - Enviar Logs (desde Bridge)
-
-**Sistema:**
-```bash
-curl -X POST http://localhost:20001/api/telemetry/system \
-  -H "Content-Type: application/json" \
-  -d '{
-    "timestamp": "2025-12-04T10:30:45.123456",
-    "type": "system",
-    "cpu_usage": 45,
-    "ram_free": 234,
-    "raw_line": "[Sistema] CPU: 45%, RAM: 234KB"
-  }'
-```
-
-**Potencia:**
-```bash
-curl -X POST http://localhost:20001/api/telemetry/power \
-  -H "Content-Type: application/json" \
-  -d '{
-    "timestamp": "2025-12-04T10:30:46.789012",
-    "type": "power",
-    "voltage": 3.7,
-    "current": 0.5,
-    "raw_line": "[Potencia] Voltaje: 3.7V, Corriente: 0.5A"
-  }'
-```
-
-### DELETE - Limpiar Logs
-
-**Eliminar todos:**
-```bash
-curl -X DELETE http://localhost:20001/api/telemetry/clear
-```
-
-**Eliminar por ID:**
-```bash
-curl -X DELETE http://localhost:20001/api/telemetry/123
-```
-
-## 🗄️ Base de Datos
-
-El backend usa **H2 Database** (in-memory), lo que significa:
-- ✅ No requiere instalación externa
-- ✅ Rápido para development
-- ⚠️ Los datos se pierden al reiniciar
-
-### Para datos persistentes (futuro):
-
-Edita `src/main/resources/application.properties`:
-```properties
-# Cambiar de H2 a PostgreSQL
-spring.datasource.url=jdbc:postgresql://localhost:5432/fomalhaut
-spring.datasource.username=postgres
-spring.datasource.password=password
-spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
-spring.jpa.hibernate.ddl-auto=update
-```
-
-## 📊 Logs de la Aplicación
-
-Para ver los logs detallados:
-
-```bash
-# Durante compilación
-mvn clean package -X
-
-# Durante ejecución
-java -jar target/fomalhaut-backend-1.0.0.jar --debug
-```
-
-## 🐛 Troubleshooting
-
-### Error: "Port 20001 already in use"
-
-Otro proceso está usando el puerto:
-
-```bash
-# Linux/macOS
-lsof -i :20001
-
-# Windows
-netstat -ano | findstr :20001
-```
-
-Solución: Cambiar puerto en `application.properties`:
-```properties
-server.port=20002
-```
-
-### Error: "No compiler is provided"
-
-Falta Java Development Kit:
-
-```bash
-# Linux
-sudo apt install openjdk-17-jdk
-
-# Verificar
-java -version
-javac -version
-```
-
-### Error de conexión desde Bridge
-
-Verifica que el backend está corriendo:
-
-```bash
-curl http://localhost:20001/api/telemetry
-```
-
-Si no responde, revisa los logs de la aplicación.
-
-## 🏗️ Estructura del Proyecto
-
-```
-backend/
-├── pom.xml                          # Configuración Maven
-├── Dockerfile                       # Imagen Docker
-├── src/main/
-│   ├── java/com/teidesat/fomalhaut/
-│   │   ├── FomalhautBackendApplication.java  # Punto de entrada
-│   │   ├── model/
-│   │   │   └── Telemetry.java              # Entidad JPA
-│   │   ├── repository/
-│   │   │   └── TelemetryRepository.java    # DAO
-│   │   └── controller/
-│   │       └── TelemetryController.java    # REST API
-│   └── resources/
-│       └── application.properties          # Configuración
-└── target/                          # Salida compilada
-```
-
-## 📝 Notas de Desarrollo
-
-### Recompilar después de cambios:
-
-```bash
-mvn clean package
+# o empaquetar
+mvn clean package -DskipTests
 java -jar target/fomalhaut-backend-1.0.0.jar
 ```
 
-O para desarrollo con auto-reload:
+El servidor quedará en `http://localhost:20001/api`.
+
+### Cómo ejecutar (Docker) 🐳
+
+Requisitos: Docker.
 
 ```bash
-mvn spring-boot:run -Dspring-boot.run.arguments="--spring.devtools.restart.enabled=true"
+cd backend
+docker build -t fomalhaut-backend:1.0 .
+docker run --rm -p 20001:20001 fomalhaut-backend:1.0
 ```
 
-### Acceder a la consola H2:
+### Consola H2 (debug)
 
-URL: http://localhost:20001/api/h2-console
-- JDBC URL: `jdbc:h2:mem:testdb`
-- Usuario: `sa`
-- Contraseña: (vacía)
+- Activada en `application.properties`:
+	- `spring.h2.console.enabled=true`
+	- `spring.h2.console.path=/h2-console`
+- Accede a `http://localhost:20001/h2-console`
+- JDBC URL: `jdbc:h2:mem:testdb`, usuario `sa`, sin password.
 
-## 🚀 Despliegue en Producción
+### CORS y seguridad
 
-Para producción, se recomienda:
+- CORS abierto (`*`) para facilitar desarrollo del bridge y frontends.
+- Para producción, ajustar orígenes permitidos en `FomalhautBackendApplication.corsConfigurer()`.
 
-1. **Usar base de datos persistente** (PostgreSQL, MySQL)
-2. **Configurar HTTPS/SSL**
-3. **Añadir autenticación JWT**
-4. **Configurar logging a archivo**
-5. **Implementar monitoreo**
+### Integración con el bridge
 
-Edita `application-prod.properties` con configuración específica.
+- El bridge debe apuntar a `http://localhost:20001` y usar rutas `/api/telemetry/...`.
+- Ejemplos de endpoints del bridge en `bridge/config.json` → `server.endpoints`.
 
-## 📞 Soporte
+### Notas y mejoras futuras
 
-Para problemas con el backend:
+- Persistencia actual es en memoria (H2). Para producción, configurar PostgreSQL/MySQL y `spring.jpa.hibernate.ddl-auto=update`.
+- Validación de payloads (Bean Validation) y DTOs separados por tipo podrían mejorar robustez.
+- Paginación en GETs con grandes volúmenes (usar `Pageable`).
 
-1. Revisa los logs: `docker logs fomalhaut-backend`
-2. Verifica la configuración: `application.properties`
-3. Prueba endpoints con `curl` o Postman
-4. Consulta la documentación de Spring Boot
-
-## 📄 Licencia
-
-GPL-3.0 - TeideSat Project
-
----
-
-**Versión:** 1.0.0  
-**Última actualización:** Diciembre 2025  
-**Autor:** TeideSat Team

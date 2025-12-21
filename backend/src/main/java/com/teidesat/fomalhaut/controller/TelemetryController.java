@@ -14,7 +14,15 @@ import java.util.Map;
 
 /**
  * TelemetryController
- * REST API endpoints for telemetry data
+ *
+ * Controlador REST que expone los endpoints para recibir y consultar
+ * telemetrías del sistema TeideSat. Los endpoints cuelgan de
+ * `/api/telemetry` (ver `application.properties`).
+ *
+ * Flujo típico:
+ * - El bridge Python envía `POST` con JSONs (por tipo o general).
+ * - Se persiste la entidad `Telemetry` vía `TelemetryRepository`.
+ * - Las consultas `GET` devuelven listas ordenadas por `createdAt`.
  */
 @RestController
 @RequestMapping("/telemetry")
@@ -27,7 +35,7 @@ public class TelemetryController {
     
     /**
      * GET /api/telemetry
-     * Get all telemetry logs
+     * Devuelve todas las telemetrías (ordenadas por creación descendente).
      */
     @GetMapping
     public ResponseEntity<List<Telemetry>> getAllTelemetry() {
@@ -39,7 +47,7 @@ public class TelemetryController {
     
     /**
      * GET /api/telemetry/system
-     * Get all system telemetry logs
+     * Devuelve telemetrías de tipo `system`.
      */
     @GetMapping("/system")
     public ResponseEntity<List<Telemetry>> getSystemTelemetry() {
@@ -51,7 +59,7 @@ public class TelemetryController {
     
     /**
      * GET /api/telemetry/power
-     * Get all power telemetry logs
+     * Devuelve telemetrías de tipo `power`.
      */
     @GetMapping("/power")
     public ResponseEntity<List<Telemetry>> getPowerTelemetry() {
@@ -63,7 +71,7 @@ public class TelemetryController {
     
     /**
      * GET /api/telemetry/temperature
-     * Get all temperature telemetry logs
+     * Devuelve telemetrías de tipo `temperature`.
      */
     @GetMapping("/temperature")
     public ResponseEntity<List<Telemetry>> getTemperatureTelemetry() {
@@ -75,7 +83,7 @@ public class TelemetryController {
     
     /**
      * GET /api/telemetry/comms
-     * Get all communications telemetry logs
+     * Devuelve telemetrías de tipo `comms`.
      */
     @GetMapping("/comms")
     public ResponseEntity<List<Telemetry>> getCommsTelemetry() {
@@ -87,7 +95,7 @@ public class TelemetryController {
     
     /**
      * GET /api/telemetry/latest/{count}
-     * Get latest N telemetry logs
+     * Devuelve las últimas `count` telemetrías.
      */
     @GetMapping("/latest/{count}")
     public ResponseEntity<List<Telemetry>> getLatestTelemetry(@PathVariable int count) {
@@ -99,7 +107,7 @@ public class TelemetryController {
     
     /**
      * POST /api/telemetry/system
-     * Receive system telemetry from bridge
+     * Inserta telemetría de tipo `system` enviada por el bridge.
      */
     @PostMapping("/system")
     public ResponseEntity<Map<String, Object>> receiveSystemTelemetry(@RequestBody Telemetry telemetry) {
@@ -110,7 +118,7 @@ public class TelemetryController {
     
     /**
      * POST /api/telemetry/power
-     * Receive power telemetry from bridge
+     * Inserta telemetría de tipo `power` enviada por el bridge.
      */
     @PostMapping("/power")
     public ResponseEntity<Map<String, Object>> receivePowerTelemetry(@RequestBody Telemetry telemetry) {
@@ -121,7 +129,7 @@ public class TelemetryController {
     
     /**
      * POST /api/telemetry/temperature
-     * Receive temperature telemetry from bridge
+     * Inserta telemetría de tipo `temperature` enviada por el bridge.
      */
     @PostMapping("/temperature")
     public ResponseEntity<Map<String, Object>> receiveTemperatureTelemetry(@RequestBody Telemetry telemetry) {
@@ -132,7 +140,7 @@ public class TelemetryController {
     
     /**
      * POST /api/telemetry/comms
-     * Receive communications telemetry from bridge
+     * Inserta telemetría de tipo `comms` enviada por el bridge.
      */
     @PostMapping("/comms")
     public ResponseEntity<Map<String, Object>> receiveCommsTelemetry(@RequestBody Telemetry telemetry) {
@@ -143,7 +151,7 @@ public class TelemetryController {
     
     /**
      * POST /api/telemetry
-     * Receive general telemetry from bridge
+     * Inserta telemetría general (sin tipo específico) enviada por el bridge.
      */
     @PostMapping
     public ResponseEntity<Map<String, Object>> receiveGeneralTelemetry(@RequestBody Telemetry telemetry) {
@@ -153,7 +161,7 @@ public class TelemetryController {
     
     /**
      * DELETE /api/telemetry/clear
-     * Clear all telemetry logs
+     * Elimina todas las telemetrías.
      */
     @DeleteMapping("/clear")
     public ResponseEntity<Map<String, String>> clearAllTelemetry() {
@@ -167,7 +175,7 @@ public class TelemetryController {
     
     /**
      * DELETE /api/telemetry/{id}
-     * Delete a specific telemetry log
+     * Elimina una telemetría por ID.
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, String>> deleteTelemetry(@PathVariable Long id) {
@@ -180,7 +188,8 @@ public class TelemetryController {
     }
     
     /**
-     * Utility method to save telemetry data
+     * Guarda la entidad `Telemetry` y devuelve respuesta estándar.
+     * Status: `201 Created` con `{status, message, id, type}`.
      */
     private ResponseEntity<Map<String, Object>> saveTelemetry(Telemetry telemetry) {
         Telemetry saved = telemetryRepository.save(telemetry);
