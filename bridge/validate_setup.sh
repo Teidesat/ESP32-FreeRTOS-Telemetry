@@ -68,19 +68,7 @@ if [ $MISSING_DEPS -eq 1 ]; then
 fi
 echo ""
 
-# 3. Ejecutar tests de parsing
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "3️⃣  Ejecutando tests de parsing"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-python3 test_bridge.py
-if [ $? -eq 0 ]; then
-    print_status "OK" "Tests de parsing pasados correctamente"
-else
-    print_status "ERROR" "Algunos tests fallaron"
-fi
-echo ""
-
-# 4. Verificar puerto serial (si está conectado)
+# 3. Verificar puerto serial (si está conectado)
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "4️⃣  Verificando puertos seriales"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -137,15 +125,10 @@ echo "6️⃣  Opciones de ejecución"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "Para ejecutar el bridge con ESP32 real:"
-echo "  python3 esp32_to_fomalhaut_bridge.py"
+echo "  python3 bridge.py"
 echo ""
 echo "Para probar sin hardware (simulación):"
-echo "  python3 simulate_esp32.py"
-echo ""
-echo "Para ver más información:"
-echo "  cat README.md"
-echo "  cat ARCHITECTURE.md"
-echo "  cat BACKEND_SPEC.md"
+echo "  python3 test_direct.py"
 echo ""
 
 # 7. Resumen
@@ -161,5 +144,5 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo ""
     print_status "INFO" "Iniciando bridge..."
     echo ""
-    python3 esp32_to_fomalhaut_bridge.py
+    python3 bridge.py
 fi

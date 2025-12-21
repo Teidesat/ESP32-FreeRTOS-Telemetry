@@ -1,232 +1,75 @@
-# 🌉 ESP32 → Fomalhaut Bridge
+## Bridge ESP32 → Fomalhaut
 
-Script puente en Python que transmite los logs de telemetría del ESP32 al servidor local Java-Spring de Fomalhaut en tiempo real.
+Pequeño puente en Python que lee líneas JSON desde el puerto serie del ESP32 y las reenvía al backend local (Java/Spring) de Fomalhaut.
 
-## 📋 Descripción
+### Contenido del directorio
 
-Este bridge actúa como intermediario entre:
-- **ESP32**: Genera logs de telemetría por puerto serial
-- **Servidor Fomalhaut**: Recibe datos vía API REST HTTP
+- `bridge.py`: Script principal del bridge. Abre el puerto serie, filtra solo líneas que sean JSON válido y las publica en el backend según su tipo (`system`, `power`, `temperature`, `comms`). Añade un `timestamp` local y muestra estadísticas.
+- `config.json`: Configuración del puente.
+  - `serial.port`: Puerto del ESP32 (ej. `/dev/ttyUSB0` o `/dev/ttyACM0`).
+  - `serial.baudrate`: Velocidad serie (por defecto `115200`).
+  - `serial.timeout`: Timeout de lectura (segundos).
+  - `server.base_url`: URL base del backend (por defecto `http://localhost:20001`).
+  - `server.endpoints`: Rutas por tipo de telemetría.
+  - `server.timeout`: Timeout de las peticiones HTTP.
+  - `debug`, `retry_attempts`, `retry_delay`: flags simples para futura lógica de reintentos.
+- `requirements.txt`: Dependencias Python (`pyserial`, `requests`, opcional `ipython`).
+- `start_bridge.sh`: Script rápido que verifica Python y dependencias y ejecuta `bridge.py`.
+- `test_direct.py`: Envío directo de telemetrías de ejemplo al backend (no usa el puerto serie). Útil para probar el backend sin hardware.
+- `validate_setup.sh`: Script de validación (Python, dependencias, puertos, backend). para ejecutar, usa `start_bridge.sh` o `bridge.py` directamente.
 
-### Características
+### Requisitos
 
-✅ Lectura en tiempo real del puerto serial  
-✅ Parsing inteligente de logs (Sistema, Potencia, Temperatura, Comms)  
-✅ Envío automático vía HTTP POST al servidor local  
-✅ Reintentos automáticos en caso de error  
-✅ Estadísticas de transmisión  
-✅ Configuración flexible vía JSON  
+- Linux/macOS/Windows con Python 3.8+
+- Backend de Fomalhaut corriendo en `server.base_url` (por defecto `http://localhost:20001`).
+- Permisos para acceder al puerto serie en Linux (grupo `dialout` o udev rule).
 
-## 🚀 Instalación Rápida
+### Pasos para probar el bridge (ESP32 real)
 
-### 1. Instalar dependencias
+1. Conecta el ESP32 por USB y localiza el puerto:
+	- Linux: `ls /dev/ttyUSB*` o `ls /dev/ttyACM*`
+2. Ajusta `config.json`:
+	- Cambia `serial.port` al dispositivo detectado (ej. `/dev/ttyUSB0`).
+	- Verifica `server.base_url` apunta a tu backend.
+3. Instala dependencias:
+	```bash
+	cd /home/u/ESP32-FreeRTOS-Telemetry/bridge
+	python3 -m pip install -r requirements.txt
+	```
+4. (Opcional) Comprueba conectividad del backend:
+	```bash
+	curl -s --connect-timeout 3 http://localhost:20001 >/dev/null && echo "Backend OK" || echo "Backend no responde"
+	```
+5. Ejecuta el bridge:
+	```bash
+	./start_bridge.sh
+	# o directamente
+	python3 bridge.py
+	```
+6. Observa el output. Deberías ver líneas tipo `✅ [SYSTEM] → 201` indicando envíos exitosos.
 
-```bash
-cd bridge
-pip install -r requirements.txt
-```
+### Prueba rápida sin hardware (solo backend)
 
-### 2. Configurar el bridge
+1. Asegúrate de que el backend está corriendo en `config.json` → `server.base_url`.
+2. Ejecuta el emulador sencillo:
+	```bash
+	python3 test_direct.py
+	```
+3. Verás respuestas HTTP (200/201) y un resumen de datos recuperados del backend.
 
-Edita `config.json` según tu entorno:
+### Notas y solución de problemas
 
-```json
-{
-  "serial": {
-    "port": "/dev/ttyUSB0",    // Cambia según tu puerto
-    "baudrate": 115200
-  },
-  "server": {
-    "base_url": "http://localhost:20001",  // URL del servidor Java-Spring
-    "endpoints": {
-      "telemetry": "/api/telemetry",
-      "system": "/api/telemetry/system",
-      "power": "/api/telemetry/power",
-      "temperature": "/api/telemetry/temperature",
-      "comms": "/api/telemetry/comms"
-    }
-  },
-  "debug": true
-}
-```
+- Permisos de puerto serie (Linux): si ves `serial.SerialException: Permission denied`, añade tu usuario al grupo `dialout` y vuelve a iniciar sesión:
+  ```bash
+  sudo usermod -a -G dialout "$USER"
+  ```
+- Backend no responde: revisa que `server.base_url` sea correcto y el servicio esté levantado. Prueba con `curl` como arriba.
+- Formato de líneas del ESP32: el bridge solo procesa JSON que empiece por `{`. Las líneas no JSON se ignoran (contador `non_json_ignored`).
+- Tipos admitidos: `system`, `power`, `temperature`, `comms`. Otros tipos se descartan.
+- Salida y estadísticas: al terminar con `Ctrl+C`, se imprimen totales de líneas leídas, JSON parseados y paquetes enviados.
 
-### 3. Ejecutar el bridge
+---
 
-```bash
-python3 esp32_to_fomalhaut_bridge.py
-```
-
-## 🔧 Configuración Detallada
-
-### Encontrar el puerto serial del ESP32
-
-**Linux:**
-```bash
-# Listar puertos disponibles
-ls /dev/tty*
-
-# Ver información de dispositivos USB
-dmesg | grep tty
-
-# Común: /dev/ttyUSB0, /dev/ttyACM0
-```
-
-**Windows:**
-```
-Administrador de dispositivos → Puertos (COM y LPT)
-# Común: COM3, COM4, COM5
-```
-
-**macOS:**
-```bash
-ls /dev/cu.*
-# Común: /dev/cu.usbserial-XXXXX
-```
-
-### Ajustar endpoints del servidor
-
-```json
-{
-  "telemetry": "/api/v1/telemetry/data",
-  "system": "/api/v1/telemetry/system",
-  "power": "/api/v1/telemetry/power",
-  "temperature": "/api/v1/telemetry/temperature",
-  "comms": "/api/v1/telemetry/comms"
-}
-```
-
-## 📊 Formato de Datos
-
-El bridge parsea automáticamente logs del ESP32 y los estructura en JSON:
-
-### Ejemplo: Telemetría de Sistema
-
-**ESP32 genera:**
-```
-[Sistema] CPU: 45%, RAM: 234KB, Stack libre: 2048
-```
-
-**Bridge envía:**
-```json
-{
-  "timestamp": "2025-12-01T10:30:45.123456",
-  "type": "system",
-  "cpu_usage": 45,
-  "ram_free": 234,
-  "raw_line": "[Sistema] CPU: 45%, RAM: 234KB, Stack libre: 2048"
-}
-```
-
-### Ejemplo: Telemetría de Potencia
-
-**ESP32 genera:**
-```
-[Potencia] Voltaje: 3.7V, Corriente: 0.5A
-```
-
-**Bridge envía:**
-```json
-{
-  "timestamp": "2025-12-01T10:30:46.789012",
-  "type": "power",
-  "voltage": 3.7,
-  "current": 0.5,
-  "raw_line": "[Potencia] Voltaje: 3.7V, Corriente: 0.5A"
-}
-```
-
-## 🎯 Uso Típico
-
-### Workflow completo
-
-1. **Iniciar el servidor backend de Fomalhaut**
-   ```bash
-   cd Fomalhaut
-   ```
-
-2. **Subir código al ESP32**
-   ```bash
-   cd /home/u/Teidesat/probando
-   platformio run --target upload
-   ```
-
-3. **Iniciar el bridge**
-   ```bash
-   cd bridge
-   python3 esp32_to_fomalhaut_bridge.py
-   ```
-
-4. **Ver logs en tiempo real**
-   - El bridge mostrará cada línea leída del ESP32
-   - Confirmará cuando envíe datos al servidor
-   - Mostrará errores si el servidor no responde
-
-### Salida típica del bridge
-
-```
-============================================================
-🛰️  ESP32 → FOMALHAUT BRIDGE
-============================================================
-📡 Puerto Serial: /dev/ttyUSB0
-🌐 Servidor: http://localhost:8080
-🐛 Debug: ON
-============================================================
-
-✅ Conectado a /dev/ttyUSB0 @ 115200 baud
-🚀 Bridge iniciado. Leyendo datos del ESP32...
-   (Presiona Ctrl+C para detener)
-
-📥 [Sistema] CPU: 45%, RAM: 234KB
-✅ [system] Enviado → 200
-📥 [Potencia] Voltaje: 3.7V, Corriente: 0.5A
-✅ [power] Enviado → 200
-📥 [Temperatura] Sensor1: 25.3°C
-✅ [temperature] Enviado → 200
-```
-
-## 🐛 Troubleshooting
-
-### Error: "No se pudo conectar al servidor"
-
-```
-⚠️  No se pudo conectar al servidor en http://localhost:20001
-💡 Verifica que el servidor Java-Spring esté ejecutándose
-```
-
-**Solución:** Asegúrate de que el backend de Fomalhaut está corriendo antes de iniciar el bridge.
-
-### Error: "Permission denied" en puerto serial
-
-```bash
-# Linux: Añadir usuario al grupo dialout
-sudo usermod -a -G dialout $USER
-# Cerrar sesión y volver a iniciar
-
-# O dar permisos temporales
-sudo chmod 666 /dev/ttyUSB0
-```
-
-### Error: "Device or resource busy"
-
-Otro programa está usando el puerto serial (como el monitor de PlatformIO).
-
-```bash
-# Cerrar otros monitores seriales
-# Verificar qué proceso usa el puerto
-lsof | grep ttyUSB0
-```
-
-## 🤝 Integración con Backend
-
-El equipo de backend de Fomalhaut debe implementar endpoints que reciban el JSON. Ejemplo en Spring Boot:
-
-## 📚 Referencias
-
-- [Proyecto TeideSat](https://github.com/Teidesat)
-- [Fomalhaut - Frontend](https://github.com/Teidesat/Fomalhaut)
-- [PySerial Documentation](https://pyserial.readthedocs.io/)
-- [Requests Library](https://requests.readthedocs.io/)
-
-## 📄 Licencia
-
-GPL-3.0
+Siguientes mejoras sugeridas:
+- Actualizar `validate_setup.sh` para usar `bridge.py` y `test_direct.py`.
+- Añadir reintentos configurables usando `retry_attempts` y `retry_delay` del `config.json`.

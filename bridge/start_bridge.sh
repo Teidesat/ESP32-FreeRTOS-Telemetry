@@ -19,7 +19,7 @@ if ! python3 -c "import serial" &> /dev/null; then
 fi
 
 # Ejecutar el bridge
-python3 esp32_to_fomalhaut_bridge.py
+python3 bridge.py
 
 echo ""
 echo "✅ Bridge finalizado"
