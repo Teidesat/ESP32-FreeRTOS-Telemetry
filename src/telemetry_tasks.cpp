@@ -25,14 +25,14 @@
 #include "../include/telemetry_generators.h"
 #include "../include/telemetry_tasks.h"
 #include "../include/telemetry_logger.h"
-// Handles globales para diagnóstico de stack
-TaskHandle_t gTaskCollectHandle = NULL;
-TaskHandle_t gTaskProcessHandle = NULL;
-TaskHandle_t gTaskTransmitHandle = NULL;
 #include "../include/telemetry_acquisition.h"
 #include "../include/telemetry_processing.h"
 #include "../include/telemetry_transmission.h"
 
+// Handles globales para diagnóstico de stack
+TaskHandle_t gTaskCollectHandle = NULL;
+TaskHandle_t gTaskProcessHandle = NULL;
+TaskHandle_t gTaskTransmitHandle = NULL;
 
 void vTelemetryCollectorTask(void *pvParameters) {
   TickType_t xLastWakeTime = xTaskGetTickCount();
